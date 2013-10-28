@@ -17,9 +17,12 @@ media/htmlzip
 media/man
 media/pdf
 media/static
+media/bower_components
 readthedocs/rtd_tests/tests/builds
 user_builds
 user_uploads
 whoosh_index
 xml_output
 .idea
+*.sass-cache
+node_modules/

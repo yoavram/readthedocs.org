@@ -1,0 +1,30 @@
+{
+  "name": "Rtd",
+  "version": "0.0.1",
+  "homepage": "https://github.com/snide/wyrm",
+  "private": true,
+  "authors": [
+    "Dave Snider <dave.snider@gmail.com>"
+  ],
+  "description": "Read the Docs hosts documentation for the open source community.",
+  "license": "MIT", 
+  "ignore": [
+    "docs",
+    ".gitignore",
+    ".DS_Store",
+    ".sass-cache*",
+    ".bowerrc",
+    "bower.json",
+    "package.json",
+    "Gruntfile.js",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "wyrm": "~0.0.x",
+    "jquery": "~2.0.3"
+  }
+}
+
