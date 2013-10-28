@@ -8,19 +8,20 @@
   <!-- meta -->
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <link rel="icon" type="image/png" href="{{ MEDIA_URL }}images/favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- title -->
   <title>{% block title %}{% endblock %} | {% block branding %}{% trans "Read the Docs" %} {% endblock %}</title>
 
   <!-- css -->
-  <link rel="stylesheet" href="{{ MEDIA_URL }}css/core.css">
+  <link rel="stylesheet" href="{{ MEDIA_URL }}css/rtd_site.css">
   {% block extra_links %}{% endblock %}
 
   <!-- jquery -->
   <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
   <script type="text/javascript">
     if (!window.jQuery) {
-      document.write('<script src="{{ MEDIA_URL }}javascript/jquery/jquery-2.0.3.min.js"><\/script>');
+      document.write('<script src="{{ MEDIA_URL }}bower_components/jquery/jquery.min.js"><\/script>');
     }
   </script>
   <script type="text/javascript" src="{{ MEDIA_URL }}javascript/jquery/jquery-migrate-1.2.1.min.js"></script>
@@ -31,107 +32,55 @@
 
   {% block extra_scripts %}{% endblock %}
 
-  <!-- typekit -->
-  <!-- Old typekit
-  <script type="text/javascript" src="//use.typekit.com/xgl8ypn.js"></script>
-  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
-  -->
-
-  <script type="text/javascript" src="//use.typekit.net/haq4xtp.js"></script>
+  <script type="text/javascript" src="//use.typekit.net/hiw1hhg.js"></script>
   <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
 
 </head>
 
 <body class="{% block body_class %}{% endblock %}">
 
-    {% block header-wrapper %}
-        {% include "core/header.html" %}
+  {% block header-wrapper %}
+    {% include "core/header.html" %}
+  {% endblock %}
+
+  {% block dashboard_bar %}{% endblock %}
+
+  {% block project_editing %}{% endblock %}
+
+  {% if request.GET.docs_not_built %}
+    <div class="notification">
+      <p>{% trans "Your docs are currently being built.  It may take a moment for them to appear." %}</p>
+      <p>{% trans "Read the Docs thanks you for your continued patience." %}</p>
+    </div>
+  {% endif %}
+
+  {% block content-header %}{% endblock %}
+
+  {% block content %}{% endblock %}
+
+  <!-- BEGIN footer-->
+  <footer>
+
+    {% block footer-content %}
+      {% blocktrans with "<a href='http://ericholscher.com/'>Eric Holscher</a>" as eric and "<a href='http://charlesleifer.com/'>Charles Leifer<a>" as charles and "<a href='http://bobbygrace.info/'>Bobby Grace</a>" as bobby and "<a href='http://djangodash.com/'>Django Dash</a>" as djangodash %}Copyright 2010-2013. Created by {{ eric }}, {{ charles }}, and {{ bobby }} for the 2010 {{ djangodash }}.{% endblocktrans %}
+      <a href="http://github.com/rtfd/readthedocs.org">Github</a> | <a href="http://read-the-docs.readthedocs.org">{%  trans "Docs" %}</a>.
+      {% trans 'Made by <a href="https://github.com/rtfd/readthedocs.org/graphs/contributors">humans</a>. Funded by <a href="https://www.gittip.com/readthedocs/">readers like you</a>.' %}
     {% endblock %}
 
-    {% block dashboard_bar %}{% endblock %}
 
-    {% block project_editing %}{% endblock %}
 
-    <!-- BEGIN content-->
-    <div id="content">
-      <div class="wrapper">
-
-        {% if request.GET.docs_not_built %}
-          <div class="notification">
-            <p>{% trans "Your docs are currently being built.  It may take a moment for them to appear." %}</p>
-            <p>{% trans "Read the Docs thanks you for your continued patience." %}</p>
-          </div>
-        {% endif %}
-
-        {% block content-header %}
-        {% endblock %}
-
-        {% block content %}
-        {% endblock %}
-
-      </div>
+    Read the Docs Announcements
+    <!-- Begin MailChimp Signup Form -->
+    <div id="mc_embed_signup">
+      <form action="http://readthedocs.us3.list-manage2.com/subscribe/post?u=a6a22369cc2b356379cf789ca&amp;id=1759385fc5" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_blank" novalidate>
+        <input  style="float: left; height: 20px;"type="email" value="" name="EMAIL" class="email" id="mce-EMAIL" placeholder="email address" required>
+        <input style="float: left; height: 33px; margin: 0px;" type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe">
+      </form>
     </div>
-    <!-- END content-->
+    <!--End mc_embed_signup-->
+  </footer>
+  <!-- END footer-->
 
-    <!-- BEGIN footer-->
-    <div id="footer">
-      <div class="wrapper">
-
-        <hr>
-
-        {% block footer-content %}
-        <p>{% blocktrans with "<a href='http://ericholscher.com/'>Eric Holscher</a>" as eric and "<a href='http://charlesleifer.com/'>Charles Leifer<a>" as charles and "<a href='http://bobbygrace.info/'>Bobby Grace</a>" as bobby and "<a href='http://djangodash.com/'>Django Dash</a>" as djangodash %}Copyright 2010-2013. Created by {{ eric }}, {{ charles }}, and {{ bobby }} for the 2010 {{ djangodash }}.{% endblocktrans %}
-        </p>
-        <a href="http://github.com/rtfd/readthedocs.org">Github</a> | <a href="http://read-the-docs.readthedocs.org">{%  trans "Docs" %}</a>.
-
-        {% trans 'Made by <a href="https://github.com/rtfd/readthedocs.org/graphs/contributors">humans</a>. Funded by <a href="https://www.gittip.com/readthedocs/">readers like you</a>.' %}
-        </p>
-        {% endblock %}
-
-
-        <p>
-        Read the Docs Announcements
-        <!-- Begin MailChimp Signup Form -->
-        <div id="mc_embed_signup">
-        <form action="http://readthedocs.us3.list-manage2.com/subscribe/post?u=a6a22369cc2b356379cf789ca&amp;id=1759385fc5" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" class="validate" target="_blank" novalidate>
-                <input  style="float: left; height: 20px;"type="email" value="" name="EMAIL" class="email" id="mce-EMAIL" placeholder="email address" required>
-                <input style="float: left; height: 33px; margin: 0px;" type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe">
-        </form>
-        </div>
-        </p>
-
-        <!--End mc_embed_signup-->
-      </div>
-    </div>
-    <!-- END footer-->
-
+  {% include "core/analytics.html" %}
 </body>
-
-<!-- BEGIN google analytics -->
-<script type="text/javascript">
-
-  var _gaq = _gaq || [];
-  _gaq.push(['_setAccount', 'UA-17997319-1']);
-  _gaq.push(['_trackPageview']);
-
-  (function() {
-    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-  })();
-
-  $('.rtfd-header-search input:text').autocomplete({
-    source: '{% url search_autocomplete %}',
-    minLength: 2,
-    open: function(event, ui) {
-      ac_top = $('.ui-autocomplete').css('top');
-      $('.ui-autocomplete').css({'width': '233px', 'top': ac_top + 10 });
-    }
-  });
-
-  {% block footerjs %}{% endblock %}
-
-</script>
-<!-- END google analytics -->
-
 </html>

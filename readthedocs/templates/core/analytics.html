@@ -1,0 +1,27 @@
+<!-- BEGIN google analytics -->
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-17997319-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+  $('.rtfd-header-search input:text').autocomplete({
+    source: '{% url search_autocomplete %}',
+    minLength: 2,
+    open: function(event, ui) {
+      ac_top = $('.ui-autocomplete').css('top');
+      $('.ui-autocomplete').css({'width': '233px', 'top': ac_top + 10 });
+    }
+  });
+
+  {% block footerjs %}{% endblock %}
+
+</script>
+<!-- END google analytics -->
+
