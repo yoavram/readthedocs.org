@@ -7,7 +7,7 @@
     "Dave Snider <dave.snider@gmail.com>"
   ],
   "description": "Read the Docs hosts documentation for the open source community.",
-  "license": "MIT", 
+  "license": "MIT",
   "ignore": [
     "docs",
     ".gitignore",
