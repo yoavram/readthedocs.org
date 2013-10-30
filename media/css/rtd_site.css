@@ -3340,13 +3340,13 @@ code.code-large, .rst-content dl dt.code-large, .rst-content tt.code-large.liter
   list-style: square;
 }
 
-.wy-plain-list-decimal, .rst-content .section ol, .rst-content ol.simple, .rst-content ol.arabic {
+.wy-plain-list-decimal, .rst-content .section ol, .rst-content ol.simple, .rst-content ol.arabic, .rtd-banner ol {
   list-style: decimal;
   line-height: 24px;
   margin-bottom: 24px;
 }
 
-.wy-plain-list-decimal li, .rst-content .section ol li, .rst-content ol.simple li, .rst-content ol.arabic li {
+.wy-plain-list-decimal li, .rst-content .section ol li, .rst-content ol.simple li, .rst-content ol.arabic li, .rtd-banner ol li {
   list-style: decimal;
   margin-left: 24px;
 }
@@ -4026,6 +4026,15 @@ pre.literal-block:after {
 .rtd-container:after {
   clear: both;
 }
+.rtd-container .rtd-half {
+  display: block;
+  float: left;
+  margin-right: 2.35765%;
+  width: 48.82117%;
+}
+.rtd-container .rtd-half:last-child {
+  margin-right: 0;
+}
 
 .rtd-menu a:hover {
   text-decoration: none;
@@ -4070,15 +4079,16 @@ pre.literal-block:after {
 .rtd-menu-header form {
   display: inline-block;
 }
-.rtd-menu-header .wy-menu-header-logo {
+.rtd-menu-header .rtd-menu-header-logo {
   color: #fcfcfc;
+  paddin-left: 0;
   font-size: 18px;
 }
 
 .rtd-banner {
   background: #343131;
   color: white;
-  padding: 120px;
+  padding: 120px 0;
 }
 .rtd-banner h1 {
   color: #fcfcfc;
@@ -4089,37 +4099,42 @@ pre.literal-block:after {
   font-weight: normal;
 }
 
-.rtd-home-projects > ul {
+.rtd-home-projects {
   *zoom: 1;
   max-width: 68em;
   margin-left: auto;
   margin-right: auto;
 }
-.rtd-home-projects > ul:before, .rtd-home-projects > ul:after {
+.rtd-home-projects:before, .rtd-home-projects:after {
   display: table;
   content: "";
 }
-.rtd-home-projects > ul:after {
+.rtd-home-projects:after {
   clear: both;
 }
-.rtd-home-projects > ul > li {
+.rtd-home-projects li {
   display: block;
   float: left;
   margin-right: 2.35765%;
   width: 23.23176%;
   margin-bottom: 1.618em;
+}
+.rtd-home-projects li:last-child {
+  margin-right: 0;
+}
+.rtd-home-projects li:nth-child(4n) {
+  margin-right: 0;
+}
+.rtd-home-projects li a {
   background: white;
   border: solid 1px #e1e4e5;
-}
-.rtd-home-projects > ul > li:last-child {
-  margin-right: 0;
-}
-.rtd-home-projects > ul > li:nth-child(4n) {
-  margin-right: 0;
+  display: block;
+  padding: 24px;
 }
 
 footer {
   background: rgba(0, 0, 0, 0.05);
+  padding: 24px 0;
   *zoom: 1;
 }
 footer:before, footer:after {

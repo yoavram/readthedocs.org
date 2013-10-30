@@ -25,30 +25,38 @@
     color: $section-background-color
   form
     display: inline-block
-  .wy-menu-header-logo
+  .rtd-menu-header-logo
     color: $section-background-color
+    paddin-left: 0
     font-size: 18px
 .rtd-banner
   background: $menu-background-color
   color: $text-invert
   +font-smooth
-  padding: $base-line-height * 5
+  padding: $base-line-height * 5 0
   h1
     color: $section-background-color
   h2
     font-family: $base-font-family
     color: $gray-light
     font-weight: normal
+  ol
+    @extend .wy-plain-list-decimal
+
 .rtd-home-projects
-  > ul
-    +outer-container
-    > li
-      +span-columns(3)
-      margin-bottom: $gutter
+  ul
+  +outer-container
+  li
+    +span-columns(3)
+    margin-bottom: $gutter
+    &:nth-child(4n)
+      +omega
+    a
       background: $white
       border: solid 1px $table-border-color
-      &:nth-child(4n)
-        +omega
+      display: block
+      padding: $base-line-height
 footer
   background: rgba(0,0,0,.05)
+  padding: $base-line-height 0
   +clearfix
