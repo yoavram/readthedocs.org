@@ -337,7 +337,7 @@ big, small {
     page-break-after: avoid;
   }
 }
-.font-smooth, .icon:before, .wy-inline-validate.wy-inline-validate-success .wy-input-context:before, .wy-inline-validate.wy-inline-validate-danger .wy-input-context:before, .wy-inline-validate.wy-inline-validate-warning .wy-input-context:before, .wy-inline-validate.wy-inline-validate-info .wy-input-context:before, .wy-tag-input-group .wy-tag .wy-tag-remove:before, .wy-modal-close:before, .rst-content .admonition-title:before, .rst-content h1 .headerlink:before, .rst-content h2 .headerlink:before, .rst-content h3 .headerlink:before, .rst-content h4 .headerlink:before, .rst-content h5 .headerlink:before, .rst-content h6 .headerlink:before, .rst-content dl dt .headerlink:before, .wy-alert, .rst-content .note, .rst-content .attention, .rst-content .caution, .rst-content .danger, .rst-content .error, .rst-content .hint, .rst-content .important, .rst-content .tip, .rst-content .warning, .btn, input[type="text"], input[type="password"], input[type="email"], input[type="url"], input[type="date"], input[type="month"], input[type="time"], input[type="datetime"], input[type="datetime-local"], input[type="week"], input[type="number"], input[type="search"], input[type="tel"], input[type="color"], select, textarea, .wy-tag-input-group {
+.font-smooth, .icon:before, .wy-inline-validate.wy-inline-validate-success .wy-input-context:before, .wy-inline-validate.wy-inline-validate-danger .wy-input-context:before, .wy-inline-validate.wy-inline-validate-warning .wy-input-context:before, .wy-inline-validate.wy-inline-validate-info .wy-input-context:before, .wy-tag-input-group .wy-tag .wy-tag-remove:before, .wy-modal-close:before, .rst-content .admonition-title:before, .rst-content h1 .headerlink:before, .rst-content h2 .headerlink:before, .rst-content h3 .headerlink:before, .rst-content h4 .headerlink:before, .rst-content h5 .headerlink:before, .rst-content h6 .headerlink:before, .rst-content dl dt .headerlink:before, .wy-alert, .rst-content .note, .rst-content .attention, .rst-content .caution, .rst-content .danger, .rst-content .error, .rst-content .hint, .rst-content .important, .rst-content .tip, .rst-content .warning, .btn, input[type="text"], input[type="password"], input[type="email"], input[type="url"], input[type="date"], input[type="month"], input[type="time"], input[type="datetime"], input[type="datetime-local"], input[type="week"], input[type="number"], input[type="search"], input[type="tel"], input[type="color"], select, textarea, .wy-tag-input-group, .rtd-banner {
   -webkit-font-smoothing: antialiased;
 }
 
@@ -3123,14 +3123,14 @@ li.wy-form-gallery-edit .arrow {
   border-left-width: 0;
 }
 .wy-table thead, .rst-content table.docutils thead, .rst-content table.docutils.field-list thead {
-  background: #e1e4e5;
   color: black;
   text-align: left;
   vertical-align: bottom;
   white-space: nowrap;
 }
 .wy-table thead th, .rst-content table.docutils thead th, .rst-content table.docutils.field-list thead th {
-  font-weight: 500;
+  font-weight: bold;
+  border-bottom: solid 2px #e1e4e5;
 }
 .wy-table td, .rst-content table.docutils td, .rst-content table.docutils.field-list td {
   background-color: transparent;
@@ -3163,7 +3163,7 @@ li.wy-form-gallery-edit .arrow {
 /*striping:
  *   even - #fff (white)
  *   odd  - #f2f2f2 (light gray) */
-.wy-table-odd td, .wy-table-striped tr:nth-child(2n-1) td {
+.wy-table-odd td, .wy-table-striped tr:nth-child(2n-1) td, .rst-content table.docutils:not(.field-list) tr:nth-child(2n-1) td {
   background-color: #f3f6f6;
 }
 
@@ -3206,7 +3206,19 @@ li.wy-form-gallery-edit .arrow {
   border-bottom-width: 0;
 }
 
-/* HORIZONTAL BORDERED TABLES */
+/* RESPONSIVE TABLES */
+.wy-table-responsive {
+  margin-bottom: 24px;
+  max-width: 100%;
+  overflow: auto;
+}
+.wy-table-responsive table {
+  margin-bottom: 0 !important;
+}
+.wy-table-responsive table td, .wy-table-responsive table th {
+  white-space: nowrap;
+}
+
 html {
   height: 100%;
   overflow-x: hidden;
@@ -3732,8 +3744,7 @@ pre.literal-block:after {
 .hll {
   background-color: #f8f8f8;
   border: 1px solid #cccccc;
-  padding: 6px 10px;
-  border-radius: 3px;
+  padding: 1.5px 5px;
 }
 
 .c {
@@ -3999,4 +4010,122 @@ pre.literal-block:after {
 .gc {
   color: #999999;
   background-color: #eaf2f5;
+}
+
+.rtd-container {
+  *zoom: 1;
+  max-width: 68em;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1066px;
+}
+.rtd-container:before, .rtd-container:after {
+  display: table;
+  content: "";
+}
+.rtd-container:after {
+  clear: both;
+}
+
+.rtd-menu a:hover {
+  text-decoration: none;
+}
+
+.rtd-menu-horiz {
+  *zoom: 1;
+}
+.rtd-menu-horiz:before, .rtd-menu-horiz:after {
+  display: table;
+  content: "";
+}
+.rtd-menu-horiz:after {
+  clear: both;
+}
+.rtd-menu-horiz ul, .rtd-menu-horiz li {
+  display: inline-block;
+}
+.rtd-menu-horiz li:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.rtd-menu-horiz li.divide-left {
+  border-left: solid 1px #404040;
+}
+.rtd-menu-horiz li.divide-right {
+  border-right: solid 1px #404040;
+}
+.rtd-menu-horiz a {
+  height: 32px;
+  display: inline-block;
+  line-height: 32px;
+  padding: 0 16px;
+}
+
+.rtd-menu-header {
+  background: #2980b9;
+  padding: 12px 0;
+}
+.rtd-menu-header a {
+  color: #fcfcfc;
+}
+.rtd-menu-header form {
+  display: inline-block;
+}
+.rtd-menu-header .wy-menu-header-logo {
+  color: #fcfcfc;
+  font-size: 18px;
+}
+
+.rtd-banner {
+  background: #343131;
+  color: white;
+  padding: 120px;
+}
+.rtd-banner h1 {
+  color: #fcfcfc;
+}
+.rtd-banner h2 {
+  font-family: "Lato", "proxima-nova", "Helvetica Neue", Arial, sans-serif;
+  color: #999999;
+  font-weight: normal;
+}
+
+.rtd-home-projects > ul {
+  *zoom: 1;
+  max-width: 68em;
+  margin-left: auto;
+  margin-right: auto;
+}
+.rtd-home-projects > ul:before, .rtd-home-projects > ul:after {
+  display: table;
+  content: "";
+}
+.rtd-home-projects > ul:after {
+  clear: both;
+}
+.rtd-home-projects > ul > li {
+  display: block;
+  float: left;
+  margin-right: 2.35765%;
+  width: 23.23176%;
+  margin-bottom: 1.618em;
+  background: white;
+  border: solid 1px #e1e4e5;
+}
+.rtd-home-projects > ul > li:last-child {
+  margin-right: 0;
+}
+.rtd-home-projects > ul > li:nth-child(4n) {
+  margin-right: 0;
+}
+
+footer {
+  background: rgba(0, 0, 0, 0.05);
+  *zoom: 1;
+}
+footer:before, footer:after {
+  display: table;
+  content: "";
+}
+footer:after {
+  clear: both;
 }

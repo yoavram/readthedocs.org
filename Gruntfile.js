@@ -4,7 +4,7 @@ module.exports = function(grunt) {
   require('matchdep').filterDev('grunt-*').forEach(grunt.loadNpmTasks);
 
   grunt.initConfig({
-    
+
     compass: {
       dev: {
         options: {
@@ -15,7 +15,7 @@ module.exports = function(grunt) {
         }
       }
     },
-    
+
     exec: {
       update: {
         cmd: 'bower update'
@@ -24,7 +24,7 @@ module.exports = function(grunt) {
         cmd: 'cd readthedocs && ./manage.py runserver'
       }
     },
-    
+
     watch: {
       sass: {
         files: ['media/**/*.sass', 'media/bower_compoents/**/*.sass'],
@@ -32,7 +32,7 @@ module.exports = function(grunt) {
       },
       /* watch our files for change, reload */
       livereload: {
-        files: ['readthedocs/templates/**/*.html', 'media/css/*.css', '**/*.js'],
+        files: ['**/*.html', '**/*.css', '**/*.js'],
         options: {
           livereload: true
         }

@@ -7,10 +7,16 @@
 {% block title %}{% trans "Home" %}{% endblock %}
 
 {% block content %}
- 
-  {% blocktrans with "https://read-the-docs.readthedocs.org/en/latest/getting_started.html" as getting_started_url %}It's free and simple.  Read the <a href="{{ getting_started_url }}">Getting Started</a> guide to get going!{% endblocktrans %}
+<div class="rtd-banner">
+  <div class="rtd-container">
+    <h1>Free sphinx document hosting.</h1>
+    <h2>Let Read the Docs host your project's documentation so you can get back to writing.</h2>
+    <a href="" class="btn icon icon-ok-sign"> Get started</a>
+  </div>
+</div>
 
-
+<div class="rtd-container">
+  <div class="rtd-home-projects">
   {% if featured_list %}
     <h3>{% trans "Featured Projects" %}</h3>
     <ul>
@@ -24,6 +30,7 @@
     {% include "core/project_list_detailed.html" %}
   </ul>
   <!-- END projects list -->
+  </div>
 
   <p>
     <a href="https://docs.readthedocs.org/en/latest/index.html">Documentation for Read the Docs</a> is hosted on the site. <a href="https://github.com/rtfd/readthedocs.org">Code for the site</a> is available on GitHub.
@@ -34,5 +41,5 @@
   <p>
     Hosting for the project is graciously provided by <a href="http://www.rackspace.com/cloud/">Rackspace</a>
   </p>
-
+</div>
 {% endblock %}
