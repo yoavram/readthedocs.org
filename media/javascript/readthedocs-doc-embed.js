@@ -1,5 +1,17 @@
 $(document).ready(function () {
 
+    get_data = {
+        project: READTHEDOCS_DATA['project'],
+        version: READTHEDOCS_DATA['version'],
+        page: READTHEDOCS_DATA['page'],
+        theme: READTHEDOCS_DATA['theme'],
+        format: "jsonp",
+    }
+
+    if ("docroot" in READTHEDOCS_DATA) {
+      get_data['docroot'] = READTHEDOCS_DATA['docroot']
+    }
+
     // Theme popout code
     $.ajax({
       url: "https://readthedocs.org/api/v2/footer_html/",
@@ -9,12 +21,7 @@ $(document).ready(function () {
         withCredentials: true,
       },
       dataType: "jsonp",
-      data: {
-        "format": "jsonp",
-        project: READTHEDOCS_DATA['project'],
-        version: READTHEDOCS_DATA['version'],
-        theme: READTHEDOCS_DATA['theme'],
-      },
+      data: get_data,
       success: function (data) {
             if (READTHEDOCS_DATA['theme'] != "sphinx_rtd_theme") {
               $("body").append(data['html'])

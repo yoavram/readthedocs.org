@@ -163,6 +163,21 @@ TEMPLATE = """
             <a href="//{{ settings.PRODUCTION_DOMAIN }}/builds/{{ project.slug }}/?fromdocs={{ project.slug }}">Builds</a>
           </dd>
       </dl>
+      {% if github_url %}
+      <dl>
+        <dt>On GitHub</dt>
+          <dd>
+            <a href="{{ github_url }}">Edit</a>
+          </dd>
+      </dl>
+      {% elif bitbucket_url %}
+      <dl>
+        <dt>On Bitbucket</dt>
+          <dd>
+            <a href="{{ bitbucket_url }}">Edit</a>
+          </dd>
+      </dl>
+      {% endif %}
       <hr/>
       Free document hosting provided by <a href="http://www.readthedocs.org">Read the Docs</a>.
 
@@ -180,7 +195,9 @@ TEMPLATE = """
 def footer_html(request):
     project_slug = request.GET.get('project', None)
     version_slug = request.GET.get('version', None)
+    page_slug = request.GET.get('page', None)
     theme = request.GET.get('theme', False)
+    docroot = request.GET.get('docroot', '')
     new_theme = (theme == "sphinx_rtd_theme")
     using_theme = (theme == "default")
     project = get_object_or_404(Project, slug=project_slug)
@@ -193,6 +210,8 @@ def footer_html(request):
         'using_theme': using_theme,
         'new_theme': new_theme,
         'settings': settings,
+        'github_url': version.get_github_url(docroot, page_slug),
+        'bitbucket_url': version.get_bitbucket_url(docroot, page_slug),
     })
     html = Template(TEMPLATE).render(context)
     return Response({"html": html})
@@ -263,33 +282,46 @@ def search(request):
         project = Project.objects.get(slug=project_slug)
         # This is a search within a project -- do a Page search.
         body = {
-            'filter': {
-                'term': {'project': project.slug},
-                'term': {'version': version_slug},
+            "filter": {
+                "and": [
+                    {"term": {"project": project.slug}},
+                    {"term": {"version": version_slug}},
+                ]
             },
-            'query': {
-                'bool': {
-                    'should': [
-                        {'match': {'title': {'query': query, 'boost': 10}}},
-                        {'match': {'headers': {'query': query, 'boost': 5}}},
-                        {'match': {'content': {'query': query}}},
+            "query": {
+                "bool": {
+                    "should": [
+                        {"match": {"title": {"query": query, "boost": 10}}},
+                        {"match": {"headers": {"query": query, "boost": 5}}},
+                        {"match": {"content": {"query": query}}},
                     ]
+                }
+            },
+            "facets": {
+                "path": {
+                    "terms": {"field": "path"}}
+            },
+            "highlight": {
+                "fields": {
+                    "title": {},
+                    "headers": {},
+                    "content": {},
                 }
             }
         }
-        results = PageIndex().search(body, routing=project.pk)
+        results = PageIndex().search(body, routing=project.pk, fields=['title', 'project', 'version', 'path'])
 
     else:
         body = {
-            'query': {
-                'bool': {
-                    'should': [
-                        {'match': {'name': {'query': query, 'boost': 10}}},
-                        {'match': {'description': {'query': query}}},
+            "query": {
+                "bool": {
+                    "should": [
+                        {"match": {"name": {"query": query, "boost": 10}}},
+                        {"match": {"description": {"query": query}}},
                     ]
-                }
+                },
             }
         }
-        results = ProjectIndex().search(body)
+        results = ProjectIndex().search(body, fields=['name', 'slug', 'description', 'lang'])
 
     return Response({'results': results})

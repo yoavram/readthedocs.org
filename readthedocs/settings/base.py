@@ -235,6 +235,22 @@ LOGGING = {
             'backupCount': backup_count,
             'formatter': 'standard',
         },
+        'postcommit': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_ROOT, "postcommit.log"),
+            'maxBytes': maxBytes,
+            'backupCount': backup_count,
+            'formatter': 'standard',
+        },
+        'restapi': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_ROOT, "api.log"),
+            'maxBytes': maxBytes,
+            'backupCount': backup_count,
+            'formatter': 'standard',
+        },
         'db': {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
@@ -248,7 +264,7 @@ LOGGING = {
             'class': 'django.utils.log.AdminEmailHandler',
         },
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'standard'
         },
@@ -261,6 +277,16 @@ LOGGING = {
         },
         'django.db.backends': {
             'handlers': ['db'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'core.views.post_commit': {
+            'handlers': ['postcommit'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'restapi': {
+            'handlers': ['restapi'],
             'level': 'DEBUG',
             'propagate': False,
         },
