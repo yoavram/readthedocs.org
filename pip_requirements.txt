@@ -41,7 +41,6 @@ httplib2==0.7.7
 elasticsearch==0.4.3
 pyquery==1.2.2
 
-
 # Utils
 django-gravatar2==1.0.6
 doc2dash==1.1.0
@@ -50,6 +49,7 @@ beautifulsoup4==4.1.3
 Unipath==0.2.1
 django-kombu==0.9.4
 django-secure==0.1.2
+django-redis==3.5.1
 mimeparse==0.1.3
 mock==1.0.1
 simplejson==3.5.2
@@ -58,7 +58,9 @@ simplejson==3.5.2
 sphinx-http-domain==0.2
 
 # Version comparison stuff
-Distutils2-py3==1.0a5.dev0
+#Distutils2-py3==1.0a5.dev0
+Distutils2==1.0a4
+
 distlib==0.1.2
 
 # Commenting stuff
@@ -70,4 +72,5 @@ git+https://github.com/ericflo/django-pagination.git@e5f669036c#egg=django_pagin
 git+https://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext
 
 git+https://github.com/alex/django-taggit.git#egg=django_taggit-dev
+git+https://github.com/heynemann/slumber.git#egg=slumber
 
