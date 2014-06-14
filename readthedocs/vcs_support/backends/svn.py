@@ -1,5 +1,6 @@
 import csv
-from StringIO import StringIO
+
+from django.utils.six import StringIO
 
 from projects.exceptions import ProjectImportError
 from vcs_support.base import BaseVCS, VCSVersion

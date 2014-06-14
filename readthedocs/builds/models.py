@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import re
 import os.path
 
@@ -5,6 +7,8 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils.encoding import python_2_unicode_compatible
+from django.utils import six
 
 from guardian.shortcuts import assign, get_objects_for_user
 from taggit.managers import TaggableManager
@@ -16,7 +20,7 @@ from .constants import BUILD_STATE, BUILD_TYPES, VERSION_TYPES
 
 class VersionManager(models.Manager):
     def _filter_queryset(self, user, project, privacy_level, only_active):
-        if isinstance(privacy_level, basestring):
+        if isinstance(privacy_level, six.string_types):
             privacy_level = (privacy_level,)
         queryset = Version.objects.filter(privacy_level__in=privacy_level)
         # Remove this so we can use public() for all active public projects
@@ -79,6 +83,7 @@ class VersionManager(models.Manager):
         return queryset.filter(*args, **kwargs)
 
 
+@python_2_unicode_compatible
 class Version(models.Model):
     project = models.ForeignKey(Project, verbose_name=_('Project'),
                                 related_name='versions')
@@ -112,12 +117,12 @@ class Version(models.Model):
             ('view_version', _('View Version')),
         )
 
-    def __unicode__(self):
-        return ugettext(u"Version %(version)s of %(project)s (%(pk)s)" % {
-            'version': self.verbose_name,
-            'project': self.project,
-            'pk': self.pk
-        })
+    def __str__(self):
+        return ugettext("Version {version} of {project} ({pk})".format(
+            version=self.verbose_name,
+            project=self.project,
+            pk=self.pk,
+        ))
 
     def get_absolute_url(self):
         if not self.built and not self.uploaded:
@@ -135,7 +140,7 @@ class Version(models.Model):
         return obj
 
 
-    @property 
+    @property
     def remote_slug(self):
         if self.slug == 'latest':
             if self.project.default_branch:
@@ -272,7 +277,7 @@ class Version(models.Model):
             )
 
 
-
+@python_2_unicode_compatible
 class VersionAlias(models.Model):
     project = models.ForeignKey(Project, verbose_name=_('Project'),
                                 related_name='aliases')
@@ -281,14 +286,15 @@ class VersionAlias(models.Model):
                                blank=True)
     largest = models.BooleanField(_('Largest'), default=False)
 
-    def __unicode__(self):
-        return ugettext(u"Alias for %(project)s: %(from)s -> %(to)s" % {
-            'project': self.project,
-            'from': self.from_slug,
-            'to': self.to_slug,
-        })
+    def __str__(self):
+        return ugettext("Alias for {project}: {from} -> {to}".format(
+            project=self.project,
+            form=self.from_slug,
+            to=self.to_slug,
+        ))
 
 
+@python_2_unicode_compatible
 class Build(models.Model):
     project = models.ForeignKey(Project, verbose_name=_('Project'),
                                 related_name='builds')
@@ -300,7 +306,7 @@ class Build(models.Model):
                              default='finished')
     date = models.DateTimeField(_('Date'), auto_now_add=True)
     success = models.BooleanField(_('Success'))
-    
+
     setup = models.TextField(_('Setup'), null=True, blank=True)
     setup_error = models.TextField(_('Setup error'), null=True, blank=True)
     output = models.TextField(_('Output'), default='', blank=True)
@@ -312,13 +318,13 @@ class Build(models.Model):
         ordering = ['-date']
         get_latest_by = 'date'
 
-    def __unicode__(self):
-        return ugettext(u"Build %(project)s for %(usernames)s (%(pk)s)" % {
-            'project': self.project,
-            'usernames': ' '.join(self.project.users.all()
-                                  .values_list('username', flat=True)),
-            'pk': self.pk,
-        })
+    def __str__(self):
+        return ugettext("Build {project} for {usernames} ({pk})".format(
+            project=self.project,
+            usernames=' '.join(self.project.users.all()
+                               .values_list('username', flat=True)),
+            pk=self.pk,
+        ))
 
     @models.permalink
     def get_absolute_url(self):

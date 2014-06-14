@@ -1,7 +1,6 @@
 import redis
 import itertools
 import operator
-import urlparse
 
 from django import forms
 from django import http
@@ -9,6 +8,7 @@ from django.conf import settings
 from django.shortcuts import render
 from django.shortcuts import redirect
 from django.utils.translation import ugettext_lazy as _
+from django.utils.six.moves import urllib
 
 r = redis.Redis(**settings.REDIS)
 
@@ -20,7 +20,7 @@ class RedirectForm(forms.Form):
     title = forms.CharField(label='Title', required=False)
 
     def clean_url(self):
-        url = urlparse.urlparse(self.cleaned_data['url'])
+        url = urllib.parse.urlparse(self.cleaned_data['url'])
         if self._domain not in url.netloc:
             raise forms.ValidationError(_('Please enter a valid URL on %s') %
                                         self._domain)
@@ -56,7 +56,7 @@ def redirect_to_term(request, version, term):
         scoregroups = group_urls(urls)
 
         # The first group is the URLs with the highest score.
-        _, winners = scoregroups.next()
+        _, winners = next(scoregroups)
 
         # If there's only a single winning URL, we're done. Count the redirect
         # and then issue it.
@@ -110,7 +110,7 @@ def get_urls(lang, project, version, term):
                   desc=True)
 
     # Convert that to a list of tuples [(score, url), (score, url), ...]
-    return zip(urls[::2], urls[1::2])
+    return list(zip(urls[::2], urls[1::2]))
 
 
 def group_urls(urls):

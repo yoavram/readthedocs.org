@@ -1,10 +1,10 @@
-import urllib
 import hashlib
 
 from django import template
 from django.conf import settings
 from django.utils.safestring import mark_safe
 from django.utils.encoding import force_bytes, force_text
+from django.utils.six.moves import urllib
 
 register = template.Library()
 
@@ -16,7 +16,7 @@ def gravatar(email, size=48):
     omgwtfstillreading
 
     """
-    url = "http://www.gravatar.com/avatar.php?%s" % urllib.urlencode({
+    url = "http://www.gravatar.com/avatar.php?%s" % urllib.parse.urlencode({
         'gravatar_id': hashlib.md5(email).hexdigest(),
         'size': str(size)
     })
@@ -26,16 +26,16 @@ def gravatar(email, size=48):
 @register.simple_tag(name="doc_url")
 def make_document_url(project, version=None, page=None):
     if project.main_language_project:
-        base_url =  project.get_translation_url(version)
+        base_url = project.get_translation_url(version)
     else:
         base_url = project.get_docs_url(version)
     if page and page != "index":
         if project.documentation_type == "sphinx_htmldir":
-            path =  page + "/"
+            path = page + "/"
         elif project.documentation_type == "sphinx_singlehtml":
             path = "index.html#document-" + page
         else:
-            path =  page + ".html"
+            path = page + ".html"
     else:
         path = ""
     return base_url + path

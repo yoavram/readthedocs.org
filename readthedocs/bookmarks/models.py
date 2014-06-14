@@ -1,10 +1,14 @@
+from __future__ import unicode_literals
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils.encoding import python_2_unicode_compatible
 
 from projects.models import Project
 
 
+@python_2_unicode_compatible
 class Bookmark(models.Model):
     project = models.ForeignKey(Project, verbose_name=_('Project'),
                                 related_name='bookmarks', null=True)
@@ -17,12 +21,12 @@ class Bookmark(models.Model):
     class Meta:
         ordering = ['-date']
 
-    def __unicode__(self):
-        return ugettext(u"Bookmark %(url)s for %(user)s (%(pk)s)") % {
-            'url': self.url,
-            'user': self.user,
-            'pk': self.pk,
-        }
+    def __str__(self):
+        return ugettext("Bookmark {url} for {user} ({pk})".format(
+            url=self.url,
+            user=self.user,
+            pk=self.pk,
+        ))
 
     def get_absolute_url(self):
         return self.url

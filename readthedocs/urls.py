@@ -6,7 +6,7 @@ from django.views.generic.base import TemplateView
 from tastypie.api import Api
 
 from api.base import (ProjectResource, UserResource, BuildResource,
-                      VersionResource, FileResource)
+                       VersionResource, FileResource)
 from builds.filters import VersionFilter
 from core.forms import UserProfileForm
 from core.views import SearchView

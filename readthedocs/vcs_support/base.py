@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import logging
 from collections import namedtuple
 import os
@@ -38,7 +40,7 @@ class BaseCLI(object):
     """
     Helper class for CLI-heavy classes.
     """
-    log_tmpl = u'VCS[{name}:{ident}]: {args}'
+    log_tmpl = 'VCS[{name}:{ident}]: {args}'
 
     def __call__(self, *args):
         return self.run(args)

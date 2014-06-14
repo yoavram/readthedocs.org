@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from django import forms
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -28,18 +30,18 @@ class ProjectForm(forms.ModelForm):
 
 class ImportProjectForm(ProjectForm):
     repo = forms.CharField(required=True,
-                           help_text=_(u'URL for your code (hg or git). Ex. '
-                                       u'http://github.com/ericholscher/django'
-                                       u'-kong.git'))
+                           help_text=_('URL for your code (hg or git). Ex. '
+                                       'http://github.com/ericholscher/django'
+                                       '-kong.git'))
     class Meta:
         model = Project
         fields = (
             # Important
-            'name', 'repo', 'repo_type', 
+            'name', 'repo', 'repo_type',
             # Not as important
-            'description', 
-            'language', 
-            'documentation_type', 
+            'description',
+            'language',
+            'documentation_type',
             'project_url',
             'canonical_url',
             'tags',
@@ -49,11 +51,11 @@ class ImportProjectForm(ProjectForm):
         repo = self.cleaned_data.get('repo', '').strip()
         pvt_repos = getattr(settings, 'ALLOW_PRIVATE_REPOS', False)
         if '&&' in repo or '|' in repo:
-            raise forms.ValidationError(_(u'Invalid character in repo name'))
+            raise forms.ValidationError(_('Invalid character in repo name'))
         elif '@' in repo and not pvt_repos:
             raise forms.ValidationError(
-                _(u'It looks like you entered a private repo - please use the '
-                  u'public (http:// or git://) clone url'))
+                _('It looks like you entered a private repo - please use the '
+                  'public (http:// or git://) clone url'))
         return repo
 
     def save(self, *args, **kwargs):
@@ -76,20 +78,20 @@ class AdvancedProjectForm(ProjectForm):
         model = Project
         fields = (
             # Standard build edits
-            'use_virtualenv', 
+            'use_virtualenv',
             'requirements_file',
-            'single_version', 
+            'single_version',
             'conf_py_file',
-            'default_branch', 
+            'default_branch',
             'default_version',
             # Privacy
-            'privacy_level', 
+            'privacy_level',
             # 'version_privacy_level',
             # Python specific
             'use_system_packages',
             'python_interpreter',
             # Fringe
-            'analytics_code', 
+            'analytics_code',
             # Version Support
             'num_major', 'num_minor', 'num_point',
         )
@@ -119,7 +121,7 @@ class DualCheckboxWidget(forms.CheckboxInput):
     def render(self, name, value, attrs=None):
         checkbox = super(DualCheckboxWidget, self).render(name, value, attrs)
         icon = self.render_icon()
-        return mark_safe(u'%s%s' % (checkbox, icon))
+        return mark_safe('%s%s' % (checkbox, icon))
 
     def render_icon(self):
         context = {
@@ -186,7 +188,7 @@ def build_versions_form(project):
             choices=constants.PRIVACY_CHOICES,
             initial=version.privacy_level,
         )
-    return type('VersionsForm', (BaseVersionsForm,), attrs)
+    return type(str('VersionsForm'), (BaseVersionsForm,), attrs)
 
 
 class BaseUploadHTMLForm(forms.Form):
@@ -224,7 +226,7 @@ def build_upload_html_form(project):
             label=_("Version of the project you are uploading HTML for"),
             choices=choices,
         )
-    return type('UploadHTMLForm', (BaseUploadHTMLForm,), attrs)
+    return type(str('UploadHTMLForm'), (BaseUploadHTMLForm,), attrs)
 
 
 class SubprojectForm(forms.Form):

@@ -2,6 +2,8 @@
 including available theme names and repository types.
 """
 
+from __future__ import unicode_literals
+
 import re
 
 from django.utils.translation import ugettext_lazy as _
@@ -142,4 +144,4 @@ LANGUAGES_REGEX = "|".join(
     [re.escape(code[0]) for code in LANGUAGES]
 )
 
-LOG_TEMPLATE = u"(Build) [{project}:{version}] {msg}"
+LOG_TEMPLATE = "(Build) [{project}:{version}] {msg}"
