@@ -112,6 +112,10 @@ class Version(models.Model):
             ('view_version', _('View Version')),
         )
 
+    def __getattribute__(self, name):
+        print "version: %s" % name
+        return object.__getattribute__(self, name)
+
     def __unicode__(self):
         return ugettext(u"Version %(version)s of %(project)s (%(pk)s)" % {
             'version': self.verbose_name,

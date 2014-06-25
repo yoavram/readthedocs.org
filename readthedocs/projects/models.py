@@ -257,6 +257,10 @@ class Project(models.Model):
             ('view_project', _('View Project')),
         )
 
+    def __getattribute__(self, name):
+        print "project: %s" % name
+        return object.__getattribute__(self, name)
+
     def __unicode__(self):
         return self.name
 
@@ -519,16 +523,7 @@ class Project(models.Model):
     def venv_bin(self, version='latest', bin='python'):
         return os.path.join(self.venv_path(version), 'bin', bin)
 
-    def full_doc_path(self, version='latest'):
-        """
-        The path to the documentation root in the project.
-        """
-        doc_base = self.checkout_path(version)
-        for possible_path in ['docs', 'doc', 'Doc']:
-            if os.path.exists(os.path.join(doc_base, '%s' % possible_path)):
-                return os.path.join(doc_base, '%s' % possible_path)
-        #No docs directory, docs are at top-level.
-        return doc_base
+
 
     def artifact_path(self, type, version='latest'):
         """
@@ -590,28 +585,6 @@ class Project(models.Model):
         """
         return os.path.join(self.doc_path, 'metadata.json')
 
-    def conf_file(self, version='latest'):
-        if self.conf_py_file:
-            log.debug('Inserting conf.py file path from model')
-            return os.path.join(self.checkout_path(version), self.conf_py_file)
-        files = self.find('conf.py', version)
-        if not files:
-            files = self.full_find('conf.py', version)
-        if len(files) == 1:
-            return files[0]
-        elif len(files) > 1:
-            for file in files:
-                if file.find('doc', 70) != -1:
-                    return file
-        else:
-            # Having this be translatable causes this odd error:
-            # ProjectImportError(<django.utils.functional.__proxy__ object at 0x1090cded0>,)
-            raise ProjectImportError(u"Conf File Missing. Please make sure you have a conf.py in your project.")
-
-    def conf_dir(self, version='latest'):
-        conf_file = self.conf_file(version)
-        if conf_file:
-            return conf_file.replace('/conf.py', '')
 
     @property
     def highest_version(self):
@@ -648,10 +621,6 @@ class Project(models.Model):
     def has_htmlzip(self, version_slug='latest'):
         return os.path.exists(self.get_htmlzip_path(version_slug))
 
-    @property
-    def sponsored(self):
-        return False
-
     def vcs_repo(self, version='latest'):
         #if hasattr(self, '_vcs_repo'):
             #return self._vcs_repo
@@ -681,26 +650,6 @@ class Project(models.Model):
 
     def repo_lock(self, version, timeout=5, polling_interval=5):
         return Lock(self, version, timeout, polling_interval)
-
-    def find(self, file, version):
-        """
-        A balla API to find files inside of a projects dir.
-        """
-        matches = []
-        for root, dirnames, filenames in os.walk(self.full_doc_path(version)):
-            for filename in fnmatch.filter(filenames, file):
-                matches.append(os.path.join(root, filename))
-        return matches
-
-    def full_find(self, file, version):
-        """
-        A balla API to find files inside of a projects dir.
-        """
-        matches = []
-        for root, dirnames, filenames in os.walk(self.checkout_path(version)):
-            for filename in fnmatch.filter(filenames, file):
-                matches.append(os.path.join(root, filename))
-        return matches
 
     def get_latest_build(self):
         try:

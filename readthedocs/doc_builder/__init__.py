@@ -1,6 +1,5 @@
 from .backends import sphinx, mkdocs
 
-
 loading = {
     # Possible HTML Builders
     'sphinx': sphinx.HtmlBuilder,

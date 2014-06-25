@@ -1,6 +1,7 @@
 import os
 import shutil
 import codecs
+import pickle
 from glob import glob
 import logging
 import zipfile
@@ -11,7 +12,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 
 from builds import utils as version_utils
-from core.utils import copy_to_app_servers, copy_file_to_app_servers
 from doc_builder.base import BaseBuilder, restoring_chdir
 from projects.utils import run
 from tastyapi import apiv2
@@ -28,31 +28,19 @@ class BaseSphinx(BaseBuilder):
 
     def __init__(self, *args, **kwargs):
         super(BaseSphinx, self).__init__(*args, **kwargs)
-        self.old_artifact_path = os.path.join(self.version.project.conf_dir(self.version.slug), self.sphinx_build_dir)
+        self.old_artifact_path = os.path.join(self.state.fs.conf_dir, self.sphinx_build_dir)
 
     @restoring_chdir
     def build(self, **kwargs):
-        project = self.version.project
-        os.chdir(project.conf_dir(self.version.slug))
-        force_str = " -E " if self._force else ""
-        if project.use_virtualenv:
-            build_command = "%s %s -b %s -D language=%s . %s " % (
-                project.venv_bin(version=self.version.slug,
-                                 bin='sphinx-build'),
-                force_str,
-                self.sphinx_builder,
-                project.language,
-                self.sphinx_build_dir,
-                )
-        else:
-            build_command = ("sphinx-build %s -b %s -D language=%s . %s"
-                             % (
-                                force_str, 
-                                self.sphinx_builder,
-                                project.language,
-                                self.sphinx_build_dir,
-                                )
-                             )
+        os.chdir(self.state.fs.conf_dir)
+        force_str = " -E "
+        build_command = "%s %s -b %s -D language=%s . %s " % (
+            self.state.fs.env_bin(bin='sphinx-build'),
+            force_str,
+            self.sphinx_builder,
+            self.state.core.language,
+            self.sphinx_build_dir,
+        )
         results = run(build_command, shell=True)
         return results
 
@@ -61,45 +49,32 @@ class BaseSphinx(BaseBuilder):
     def append_conf(self, **kwargs):
         """Modify the given ``conf.py`` file from a whitelisted user's project.
         """
-        project = self.version.project
-        #Open file for appending.
-        outfile = codecs.open(project.conf_file(self.version.slug),
-                              encoding='utf-8', mode='a')
+        outfile = codecs.open(self.state.fs.conf_file, encoding='utf-8', mode='a')
         outfile.write("\n")
-        conf_py_path = version_utils.get_conf_py_path(self.version)
-        remote_version = version_utils.get_vcs_version_slug(self.version)
-        github_info = version_utils.get_github_username_repo(self.version)
-        bitbucket_info = version_utils.get_bitbucket_username_repo(self.version)
-        if github_info[0] is None:
-            display_github = False
-        else:
-            display_github = True
-        if bitbucket_info[0] is None:
-            display_bitbucket = False
-        else:
-            display_bitbucket = True
 
         rtd_ctx = Context({
-            'versions': project.api_versions(),
-            'downloads': self.version.get_downloads(pretty=True),
-            'current_version': self.version.slug,
-            'project': project,
-            'settings': settings,
-            'static_path': STATIC_DIR,
-            'template_path': TEMPLATE_DIR,
-            'conf_py_path': conf_py_path,
-            'downloads': apiv2.version(self.version.pk).downloads.get()['downloads'],
-            'api_host': getattr(settings, 'SLUMBER_API_HOST', 'https://readthedocs.org'),
-            # GitHub
-            'github_user': github_info[0],
-            'github_repo': github_info[1],
-            'github_version':  remote_version,
-            'display_github': display_github,
-            # BitBucket
-            'bitbucket_user': bitbucket_info[0],
-            'bitbucket_repo': bitbucket_info[1],
-            'bitbucket_version':  remote_version,
-            'display_bitbucket': display_bitbucket,
+            'state': self.state,
+            'json_state': pickle.dumps(self.state),
+            # 'versions': project.api_versions(),
+            # 'downloads': self.version.get_downloads(pretty=True),
+            # 'current_version': self.version.slug,
+            # 'project': project,
+            # 'settings': settings,
+            # 'static_path': STATIC_DIR,
+            # 'template_path': TEMPLATE_DIR,
+            # 'conf_py_path': conf_py_path,
+            # 'downloads': apiv2.version(self.version.pk).downloads.get()['downloads'],
+            # 'api_host': getattr(settings, 'SLUMBER_API_HOST', 'https://readthedocs.org'),
+            # # GitHub
+            # 'github_user': github_info[0],
+            # 'github_repo': github_info[1],
+            # 'github_version':  remote_version,
+            # 'display_github': display_github,
+            # # BitBucket
+            # 'bitbucket_user': bitbucket_info[0],
+            # 'bitbucket_repo': bitbucket_info[1],
+            # 'bitbucket_version':  remote_version,
+            # 'display_bitbucket': display_bitbucket,
         })
         rtd_string = template_loader.get_template('doc_builder/conf.py.tmpl').render(rtd_ctx)
         outfile.write(rtd_string)
@@ -182,7 +157,7 @@ class PdfBuilder(BaseSphinx):
         results = {}
         if project.use_virtualenv:
             latex_results = run('%s -b latex -D language=%s -d _build/doctrees . _build/latex'
-                                % (project.venv_bin(version=self.version.slug,
+                                % (project.env_bin(version=self.version.slug,
                                                    bin='sphinx-build'), project.language))
         else:
             latex_results = run('sphinx-build -b latex -D language=%s -d _build/doctrees '
