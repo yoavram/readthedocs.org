@@ -58,7 +58,7 @@ def process_file(filename):
         body = PyQuery(data['body'])
         body_content = body.text().replace('¶', '')
         # Section stuff from inside the body
-        section_list = body('.section > h2')
+        section_list = body.find('.section > h2')
         for num in range(len(section_list)):
             div = section_list.eq(num).parent()
             header = section_list.eq(num)

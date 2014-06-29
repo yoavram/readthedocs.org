@@ -15,6 +15,8 @@ class TestHacks(TestCase):
                 'files/api.fjson',
             )
         )
+        self.assertIsNotNone(data)
+        self.assertEqual(len(data['sections']), 15)
         self.assertEqual(data['sections'][0]['id'], 'a-basic-api-client-using-slumber')
         # Only capture h2's
         for obj in data['sections']:
