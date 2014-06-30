@@ -68,7 +68,7 @@ class PrivacyTests(TestCase):
 
         self.client.login(username='eric', password='test')
         r = self.client.get('/')
-        self.assertTrue('Django Kong' in r.content)
+        self.assertTrue('Django Kong' in r.content.decode('utf-8'))
         r = self.client.get('/projects/django-kong/')
         self.assertEqual(r.status_code, 200)
         r = self.client.get('/builds/django-kong/')
@@ -78,7 +78,7 @@ class PrivacyTests(TestCase):
 
         self.client.login(username='tester', password='test')
         r = self.client.get('/')
-        self.assertTrue('Django Kong' not in r.content)
+        self.assertTrue('Django Kong' not in r.content.decode('utf-8'))
         r = self.client.get('/projects/django-kong/')
         self.assertEqual(r.status_code, 404)
         r = self.client.get('/builds/django-kong/')
@@ -95,9 +95,9 @@ class PrivacyTests(TestCase):
 
         self.client.login(username='eric', password='test')
         r = self.client.get('/')
-        self.assertTrue('Django Kong' in r.content)
+        self.assertTrue('Django Kong' in r.content.decode('utf-8'))
         r = self.client.get('/projects/')
-        self.assertTrue('Django Kong' in r.content)
+        self.assertTrue('Django Kong' in r.content.decode('utf-8'))
         r = self.client.get('/projects/django-kong/')
         self.assertEqual(r.status_code, 200)
         r = self.client.get('/builds/django-kong/')
@@ -107,9 +107,9 @@ class PrivacyTests(TestCase):
 
         self.client.login(username='tester', password='test')
         r = self.client.get('/')
-        self.assertTrue('Django Kong' not in r.content)
+        self.assertTrue('Django Kong' not in r.content.decode('utf-8'))
         r = self.client.get('/projects/')
-        self.assertTrue('Django Kong' not in r.content)
+        self.assertTrue('Django Kong' not in r.content.decode('utf-8'))
         r = self.client.get('/projects/django-kong/')
         self.assertEqual(r.status_code, 200)
         r = self.client.get('/builds/django-kong/')
@@ -126,7 +126,7 @@ class PrivacyTests(TestCase):
 
         self.client.login(username='eric', password='test')
         r = self.client.get('/')
-        self.assertTrue('Django Kong' in r.content)
+        self.assertTrue('Django Kong' in r.content.decode('utf-8'))
         r = self.client.get('/projects/django-kong/')
         self.assertEqual(r.status_code, 200)
         r = self.client.get('/builds/django-kong/')
@@ -136,7 +136,7 @@ class PrivacyTests(TestCase):
 
         self.client.login(username='tester', password='test')
         r = self.client.get('/')
-        self.assertTrue('Django Kong' in r.content)
+        self.assertTrue('Django Kong' in r.content.decode('utf-8'))
         r = self.client.get('/projects/django-kong/')
         self.assertEqual(r.status_code, 200)
         r = self.client.get('/builds/django-kong/')
@@ -156,12 +156,12 @@ class PrivacyTests(TestCase):
         self.assertEqual(Version.objects.count(), 1)
         self.assertEqual(Version.objects.all()[0].privacy_level, 'private')
         r = self.client.get('/projects/django-kong/')
-        self.assertTrue('test-slug' in r.content)
+        self.assertTrue('test-slug' in r.content.decode('utf-8'))
 
         # Make sure it doesn't show up as tester
         self.client.login(username='tester', password='test')
         r = self.client.get('/projects/django-kong/')
-        self.assertTrue('test-slug' not in r.content)
+        self.assertTrue('test-slug' not in r.content.decode('utf-8'))
 
     def test_protected_branch(self):
         kong = self._create_kong('public', 'protected')
@@ -175,12 +175,12 @@ class PrivacyTests(TestCase):
         self.assertEqual(Version.objects.count(), 1)
         self.assertEqual(Version.objects.all()[0].privacy_level, 'protected')
         r = self.client.get('/projects/django-kong/')
-        self.assertTrue('test-slug' in r.content)
+        self.assertTrue('test-slug' in r.content.decode('utf-8'))
 
         # Make sure it doesn't show up as tester
         self.client.login(username='tester', password='test')
         r = self.client.get('/projects/django-kong/')
-        self.assertTrue('test-slug' not in r.content)
+        self.assertTrue('test-slug' not in r.content.decode('utf-8'))
 
     def test_public_branch(self):
         kong = self._create_kong('public', 'public')
@@ -194,12 +194,12 @@ class PrivacyTests(TestCase):
         self.assertEqual(Version.objects.count(), 1)
         self.assertEqual(Version.objects.all()[0].privacy_level, 'public')
         r = self.client.get('/projects/django-kong/')
-        self.assertTrue('test-slug' in r.content)
+        self.assertTrue('test-slug' in r.content.decode('utf-8'))
 
         # Make sure it doesn't show up as tester
         self.client.login(username='tester', password='test')
         r = self.client.get('/projects/django-kong/')
-        self.assertTrue('test-slug' in r.content)
+        self.assertTrue('test-slug' in r.content.decode('utf-8'))
 
     def test_public_repo_api(self):
         self._create_kong('public', 'public')
@@ -210,7 +210,7 @@ class PrivacyTests(TestCase):
         resp = self.client.get("http://testserver/api/v1/project/",
                                data={"format": "json"})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content)
+        data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['meta']['total_count'], 1)
 
         self.client.login(username='tester', password='test')
@@ -220,7 +220,7 @@ class PrivacyTests(TestCase):
         resp = self.client.get("http://testserver/api/v1/project/",
                                data={"format": "json"})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content)
+        data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['meta']['total_count'], 1)
 
     def test_protected_repo_api(self):
@@ -231,13 +231,13 @@ class PrivacyTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         resp = self.client.get("http://testserver/api/v1/project/",
                                data={"format": "json"})
-        data = json.loads(resp.content)
+        data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['meta']['total_count'], 1)
 
         self.client.login(username='tester', password='test')
         resp = self.client.get("http://testserver/api/v1/project/",
                                data={"format": "json"})
-        data = json.loads(resp.content)
+        data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['meta']['total_count'], 0)
 
         # Need to figure out how to properly filter the detail view in
@@ -258,7 +258,7 @@ class PrivacyTests(TestCase):
         resp = self.client.get("http://testserver/api/v1/project/",
                                data={"format": "json"})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content)
+        data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['meta']['total_count'], 1)
 
         self.client.login(username='tester', password='test')
@@ -268,7 +268,7 @@ class PrivacyTests(TestCase):
         resp = self.client.get("http://testserver/api/v1/project/",
                                data={"format": "json"})
         self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content)
+        data = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(data['meta']['total_count'], 0)
 
     def test_private_doc_serving(self):

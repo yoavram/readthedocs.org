@@ -18,7 +18,7 @@ from projects.utils import highest_version, mkversion, slugify_uniquely
 from projects import tasks
 from djangome import views as djangome
 
-from .utils import SearchMixin, PostAuthentication 
+from .utils import SearchMixin, PostAuthentication
 
 log = logging.getLogger(__name__)
 
@@ -69,7 +69,6 @@ class ProjectResource(ModelResource, SearchMixin):
         return HttpCreated(location=self.get_resource_uri(updated_bundle))
 
 
-
     def sync_versions(self, request, **kwargs):
         """
         Sync the version data in the repo (on the build server) with what we have in the database.
@@ -82,7 +81,7 @@ class ProjectResource(ModelResource, SearchMixin):
                 request, request.body,
                 format=request.META.get('CONTENT_TYPE', 'application/json')
             )
-            data = json.loads(post_data)
+            data = json.loads(post_data.decode('utf-8'))
             self.method_check(request, allowed=['post'])
             self.is_authenticated(request)
             self.throttle_check(request)

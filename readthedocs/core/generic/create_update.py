@@ -7,6 +7,7 @@ from django.utils.translation import ugettext
 from django.contrib.auth.views import redirect_to_login
 from django.views.generic import GenericViewError
 from django.contrib import messages
+from django.utils.six import iteritems
 
 import warnings
 warnings.warn(
@@ -20,7 +21,7 @@ def apply_extra_context(extra_context, context):
     Adds items from extra_context dict to context.  If a value in extra_context
     is callable, then it is called and the result is added to context.
     """
-    for key, value in extra_context.iteritems():
+    for key, value in iteritems(extra_context):
         if callable(value):
             context[key] = value()
         else:

@@ -60,7 +60,17 @@ class BaseCLI(object):
         except UnicodeDecodeError:
             # >:x
             pass
+
         stdout, stderr = process.communicate()
+        try:
+            stdout = stdout.decode('utf-8')
+        except UnicodeDecodeError:
+            pass
+        try:
+            stderr = stderr.decode('utf-8')
+        except UnicodeDecodeError:
+            pass
+
         try:
             log.info(self.log_tmpl.format(ident=basename(self.working_dir),
                                           name=self.name,

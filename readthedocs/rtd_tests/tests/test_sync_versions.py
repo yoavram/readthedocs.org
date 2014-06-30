@@ -35,10 +35,10 @@ class TestSyncVersions(TestCase):
         ]}
 
         r = self.client.post(
-            '/api/v2/project/%s/sync_versions/' % self.pip.pk, 
+            '/api/v2/project/%s/sync_versions/' % self.pip.pk,
             data=json.dumps(version_post_data),
             content_type='application/json',
         )
-        json_data = json.loads(r.content)
+        json_data = json.loads(r.content.decode('utf-8'))
         self.assertEqual(json_data['deleted_versions'], ['to_delete'])
         self.assertEqual(json_data['added_versions'], ['to_add'])

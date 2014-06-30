@@ -26,7 +26,7 @@ def import_project(project):
             log.error("Socket error trying to pull from Open Comparison",
                       exc_info=True)
         if resp.status_code == 200:
-            content_dict = json.loads(resp.content)
+            content_dict = json.loads(resp.content.decode('utf-8'))
             project.django_packages_url = (BASE_SERVER +
                                            content_dict['absolute_url'])
             project.save()
