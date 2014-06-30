@@ -66,5 +66,6 @@ git+https://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext
 git+https://github.com/jezdez/celery-haystack.git@2c515d4cd9#egg=celery-haystack
 
 git+https://github.com/alex/django-taggit.git#egg=django_taggit-dev
-git+https://github.com/heynemann/slumber.git#egg=slumber
+# TODO watch slumber - still awaiting PR #73 for py3 support
+git+https://github.com/dupuy/slumber.git@b62f6dd6c3#egg=slumber
 
