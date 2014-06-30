@@ -1,10 +1,20 @@
-from django.test import TestCase
+from __future__ import unicode_literals
+
 import json
-import base64
+
+from django.test import TestCase
+from django.utils import six
+
+if six.PY2:
+    from base64 import b64encode
+elif six.PY3:
+    from base64 import b64encode as _b64encode
+    def b64encode(s, **kwargs):
+        return _b64encode(s.encode('utf-8')).decode('utf-8')
 
 
-super_auth = base64.b64encode('super:test')
-eric_auth = base64.b64encode('eric:test')
+super_auth = b64encode('super:test')
+eric_auth = b64encode('eric:test')
 
 
 class APIBuildTests(TestCase):
@@ -30,7 +40,7 @@ class APIBuildTests(TestCase):
         resp = self.client.get('/api/v1/build/1/', data={'format': 'json'},
                                HTTP_AUTHORIZATION='Basic %s' % super_auth)
         self.assertEqual(resp.status_code, 200)
-        obj = json.loads(resp.content)
+        obj = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(obj['output'], 'Test Output')
 
 
@@ -53,7 +63,7 @@ class APITests(TestCase):
         resp = self.client.get('/api/v1/project/23/', data={'format': 'json'},
                                HTTP_AUTHORIZATION='Basic %s' % eric_auth)
         self.assertEqual(resp.status_code, 200)
-        obj = json.loads(resp.content)
+        obj = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(obj['slug'], 'awesome-project')
 
     def test_invalid_make_project(self):
@@ -67,7 +77,7 @@ class APITests(TestCase):
         resp = self.client.post(
             '/api/v1/project/', data=json.dumps(post_data),
             content_type='application/json',
-            HTTP_AUTHORIZATION='Basic %s' % base64.b64encode('tester:notapass')
+            HTTP_AUTHORIZATION='Basic %s' % b64encode('tester:notapass')
         )
         self.assertEqual(resp.status_code, 401)
 
@@ -85,7 +95,7 @@ class APITests(TestCase):
             '/api/v1/project/',
             data=json.dumps(post_data),
             content_type='application/json',
-            HTTP_AUTHORIZATION='Basic %s' % base64.b64encode('tester:test')
+            HTTP_AUTHORIZATION='Basic %s' % b64encode('tester:test')
         )
         self.assertEqual(resp.status_code, 401)
 
@@ -103,7 +113,7 @@ class APITests(TestCase):
             data={"format": "json"}
         )
         self.assertEqual(resp.status_code, 200)
-        obj = json.loads(resp.content)
+        obj = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(obj['is_highest'], False)
 
     def test_latest_version_highest(self):
@@ -112,7 +122,7 @@ class APITests(TestCase):
             data={"format": "json"}
         )
         self.assertEqual(resp.status_code, 200)
-        obj = json.loads(resp.content)
+        obj = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(obj['is_highest'], True)
 
     def test_real_highest(self):
@@ -121,5 +131,5 @@ class APITests(TestCase):
             data={"format": "json"}
         )
         self.assertEqual(resp.status_code, 200)
-        obj = json.loads(resp.content)
+        obj = json.loads(resp.content.decode('utf-8'))
         self.assertEqual(obj['is_highest'], True)
