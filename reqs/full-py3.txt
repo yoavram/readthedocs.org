@@ -1,0 +1,2 @@
+-r full.txt
+Distutils2-py3==1.0a5.dev0
