@@ -10,7 +10,7 @@ if six.PY2:
         return imp.find_module(name, path)
 elif six.PY3:
     # These calls are missing from importlib 1.x and Python 2
-    import importlib
+    import importlib.util
 
     # Cache names here, find_spec also iterates through `sys.meta_path` and will
     # recurse endlessly.
