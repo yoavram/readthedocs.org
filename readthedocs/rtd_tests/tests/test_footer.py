@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import json
 
 from django.test import TestCase
@@ -18,7 +20,7 @@ class Testmaker(TestCase):
 
     def test_footer(self):
         r = self.client.get('/api/v2/footer_html/?project=pip&version=latest&page=index', {})
-        resp = json.loads(r.content)
+        resp = json.loads(r.content.decode('utf-8'))
         self.assertEqual(resp['version_active'], True)
         self.assertEqual(resp['version_supported'], True)
         self.assertEqual(r.context['main_project'], self.pip)
@@ -27,7 +29,7 @@ class Testmaker(TestCase):
         self.latest.active = False
         self.latest.save()
         r = self.client.get('/api/v2/footer_html/?project=pip&version=latest&page=index', {})
-        resp = json.loads(r.content)
+        resp = json.loads(r.content.decode('utf-8'))
         self.assertEqual(resp['version_active'], False)
         self.assertEqual(r.status_code, 200)
 
