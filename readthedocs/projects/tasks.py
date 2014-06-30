@@ -13,6 +13,7 @@ from django.conf import settings
 import redis
 import slumber
 import tastyapi
+from requests.exceptions import ConnectionError
 
 from builds.models import Build, Version
 from doc_builder import loading as builder_loading
@@ -301,7 +302,6 @@ def update_imported_docs(version_pk, api=None):
             ret_dict['checkout'] = version_repo.update()
 
         # Update tags/version
-
         version_post_data = {'repo': version_repo.repo_url}
 
         if version_repo.supports_tags:
@@ -320,8 +320,13 @@ def update_imported_docs(version_pk, api=None):
 
         try:
             apiv2.project(project.pk).sync_versions.post(version_post_data)
+        except ConnectionError as e:
+            log.warning(LOG_TEMPLATE.format(
+                project=project.slug, version=version.slug, msg=str(e)))
         except Exception as e:
-            print(("Sync Verisons Exception: {0}".format(e.message)))
+            log.warning(LOG_TEMPLATE.format(
+                project=project.slug, version=version.slug,
+                msg='Sync Versions Exception: {0}'.format(e.message)))
     return ret_dict
 
 
