@@ -1,1 +1,0 @@
-full-py3.txt
