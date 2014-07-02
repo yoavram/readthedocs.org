@@ -1,15 +1,12 @@
 import sys
 
-from django.utils import six
-
-# Dynamic find_module based on Python version
-if six.PY2:
+try:
+    # `imp` was deprecated in 3.3, `find_spec` was introduced in 3.4, catch
+    # future ImportErrors here.
+    if sys.version_info.major == 3 and sys.version_info.minor > 3:
+        raise DeprecationWarning
     import imp
-
-    def _find_module(name, path):
-        return imp.find_module(name, path)
-elif six.PY3:
-    # These calls are missing from importlib 1.x and Python 2
+except (ImportError, DeprecationWarning):
     import importlib.util
 
     # Cache names here, find_spec also iterates through `sys.meta_path` and will
@@ -23,6 +20,10 @@ elif six.PY3:
         spec = importlib.util.find_spec(name, path)
         if spec is not None:
             return spec.loader
+else:
+    # Continue using imp
+    def _find_module(name, path):
+        return imp.find_module(name, path)
 
 
 class ErrorlessImport(object):
