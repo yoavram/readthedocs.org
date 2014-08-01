@@ -1,31 +1,37 @@
+import sphinx_rtd_theme 
+
 # JSON of the state object
+import json
+json_state = """{{ json_state|safe }}"""
+state_dict = json.loads(json_state)
+class AttributeDict(dict): 
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
-import pickle
-
-json_state = """
-{{ json_state }}
-"""
-
-state = pickle.loads(json_state)
+state = AttributeDict(state_dict)
+state['core'] = AttributeDict(state['core'])
+state['fs'] = AttributeDict(state['fs'])
+state['settings'] = AttributeDict(state['settings'])
+state['vcs'] = AttributeDict(state['vcs'])
 
 # Add RTD Template Path.
 if 'templates_path' in globals():
-    templates_path.insert(0, '{{ state.settings.template_path }}')
+    templates_path.insert(0, '{{ state.settings.TEMPLATE_PATH }}')
 else:
-    templates_path = ['{{ state.settings.template_path }}', 'templates', '_templates',
+    templates_path = ['{{ state.settings.TEMPLATE_PATH }}', 'templates', '_templates',
                       '.templates']
 
 # Add RTD Static Path. Add to the end because it overwrites previous files.
 if 'html_static_path' in globals():
-    html_static_path.append('{{ state.settings.static_path }}')
+    html_static_path.append('{{ state.settings.STATIC_PATH }}')
 else:
-    html_static_path = ['_static', '{{ state.settings.static_path }}']
+    html_static_path = ['_static', '{{ state.settings.STATIC_PATH }}']
 
 # Add RTD Theme Path. 
 if 'html_theme_path' in globals():
-    html_theme_path.append('{{ state.settings.template_path }}')
+    html_theme_path.append('{{ state.settings.TEMPLATE_PATH }}')
 else:
-    html_theme_path = ['_themes', '{{ state.settings.template_path }}']
+    html_theme_path = ['_themes', '{{ state.settings.TEMPLATE_PATH }}']
 
 # Add custom RTD extension
 if 'extensions' in globals():
@@ -43,11 +49,13 @@ if 'html_theme' in globals():
             html_style = None
             html_theme_options = {}
             using_rtd_theme = True
+            html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 else:
     html_theme = 'sphinx_rtd_theme'
     html_style = None
     html_theme_options = {}
     using_rtd_theme = True
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
     # Add project information to the template context.
 context = {

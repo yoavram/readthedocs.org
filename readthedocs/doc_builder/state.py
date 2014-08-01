@@ -32,14 +32,14 @@ class CoreState(object):
 
 class SettingsState(object):
     API_HOST = 'https://readthedocs.org'
-    MEDIA_URL = 'https://media.readthedocs.org'
+    MEDIA_URL = 'https://media.readthedocs.org/'
     PRODUCTION_DOMAIN = 'https://readthedocs.org'
     STATIC_PATH = '/static/'
     TEMPLATE_PATH = None
 
     def __init__(self, **kwargs):
-        pass
-
+        for kwarg, val in kwargs.items():
+            setattr(self, kwarg, val)
 
 class VCSState(object):
 

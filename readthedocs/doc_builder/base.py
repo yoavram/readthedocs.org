@@ -41,6 +41,7 @@ class BaseBuilder(object):
         """
         ret_dict = {}
         if self.state.core.virtualenv:
+            # Clean up from possible old builds
             build_dir = os.path.join(self.state.fs.project.env_path, 'build')
             if os.path.exists(build_dir):
                 log.info(LOG_TEMPLATE.format(project=self.state.core.project, version=self.state.core.version, msg='Removing existing build dir'))
@@ -67,8 +68,11 @@ class BaseBuilder(object):
             else:
                 ignore_option = ''
             ret_dict['sphinx'] = run(
-                ('{cmd} install -U {ignore_option} sphinx==1.2.2 ' 
-                 'virtualenv==1.9.1 docutils==0.11 git+git://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext').format(
+                ('{cmd} install -U {ignore_option} '
+                'sphinx_rtd_theme sphinx==1.2.2 ' 
+                'git+https://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext '
+                'virtualenv==1.9.1 docutils==0.11 '
+                'git+git://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext').format(
                     cmd=self.state.fs.env_bin('pip'),
                     ignore_option=ignore_option))
 
@@ -85,7 +89,6 @@ class BaseBuilder(object):
                     '{cmd} setup.py install --force'.format(
                         cmd=self.state.fs.env_bin('python')))
         return ret_dict
-
 
     def force(self, **kwargs):
         """

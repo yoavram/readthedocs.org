@@ -1,7 +1,11 @@
 import fnmatch
 import os
 
+from projects.exceptions import ProjectImportError
+
+
 class FilesystemProject(object):
+
     """
     FilesystemProject takes a root path on the filesystem,
     and a slug for the project.
@@ -20,6 +24,7 @@ class FilesystemProject(object):
 
 
 class ReadTheDocsProject(FilesystemProject):
+
     def __init__(self, root, slug, **kwargs):
         self.root = root
         self.slug = slug
@@ -37,6 +42,7 @@ class ReadTheDocsProject(FilesystemProject):
         if not os.path.exists(self.artifact_path):
             os.makedirs(self.artifact_path)
 
+
 class Version(object):
 
     def __init__(self, project, slug):
@@ -46,15 +52,17 @@ class Version(object):
         """
         self.project = project
         self.slug = slug
-        self.checkout_path = os.path.join(self.project.checkout_path, self.slug)
-        
-    @property 
+        self.checkout_path = self.project.checkout_path
+        #self.checkout_path = os.path.join(self.project.checkout_path, self.slug)
+
+    @property
     def full_doc_path(self):
         """
         The path to the documentation root in the project.
         """
         for possible_path in ['docs', 'doc', 'Doc']:
-            full_possible_path = os.path.join(self.checkout_path, '%s' % possible_path) 
+            full_possible_path = os.path.join(
+                self.checkout_path, '%s' % possible_path)
             if os.path.exists(full_possible_path):
                 return full_possible_path
         return self.checkout_path
@@ -89,9 +97,11 @@ class Version(object):
     def env_bin(self, bin):
         return os.path.join(self.project.env_path, 'bin', bin)
 
+
 class SphinxVersion(Version):
+
     """
-    SphinxProject represents a Sphinx version on the filesystem.
+    SphinxVersion represents a Sphinx version on the filesystem.
     """
     conf = None
 
@@ -110,8 +120,11 @@ class SphinxVersion(Version):
                     return file
         else:
             # Having this be translatable causes this odd error:
-            # ProjectImportError(<django.utils.functional.__proxy__ object at 0x1090cded0>,)
-            raise ProjectImportError(u"Conf File Missing. Please make sure you have a conf.py in your project.")
+            # ProjectImportError(<django.utils.functional.__proxy__ object at
+            # 0x1090cded0>,)
+            raise ProjectImportError(
+                u"Conf File Missing. Please make sure you have a conf.py in your project."
+                )
 
     @property
     def conf_dir(self):
