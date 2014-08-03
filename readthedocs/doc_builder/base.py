@@ -70,7 +70,6 @@ class BaseBuilder(object):
             ret_dict['sphinx'] = run(
                 ('{cmd} install -U {ignore_option} '
                 'sphinx_rtd_theme sphinx==1.2.2 ' 
-                'git+https://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext '
                 'virtualenv==1.9.1 docutils==0.11 '
                 'git+git://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext').format(
                     cmd=self.state.fs.env_bin('pip'),

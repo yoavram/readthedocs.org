@@ -4,13 +4,16 @@ from doc_builder import loading
 from doc_builder.state import CoreState, SettingsState, VCSState, BuildState
 from filesystem import FilesystemProject, SphinxVersion
 
+root = '/Users/eric/checkouts/setuptools/'
+
 project_obj = FilesystemProject(
-    root='/Users/eric/projects/django-kong',
+    root=root,
     slug='kong',
-    checkout_path='/Users/eric/projects/django-kong',
-    artifact_path='/Users/eric/projects/django-kong/rtd-artifact',
-    env_path='/Users/eric/projects/django-kong/rtd-env',
+    checkout_path=root,
+    artifact_path=root + 'rtd-artifact',
+    env_path=root + 'rtd-env',
 )
+
 version_obj = SphinxVersion(project=project_obj, slug='latest')
 
 vcs = VCSState(repo='https://github.com/username/repo.git', branch='master')
