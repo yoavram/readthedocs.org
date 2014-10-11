@@ -302,7 +302,29 @@ div.menu-user div.menu-dropdown.menu-dropped {
   .module-item a.module-item-title:hover { text-decoration: underline; }
 
   /* module item */
-  .module-item { background: #fff; }
+  li.module-item {
+    background: #fff;
+  }
+
+  li.module-item:hover {
+    background: #f3f3f3 url(../images/gradient-light.png) bottom left repeat-x;
+  }
+
+  li.module-item:hover a {
+    color: #7C8F99;
+  }
+
+  li.module-item a {
+    text-decoration: none;
+  }
+
+  li.module-item a:hover {
+    text-decoration: underline;
+  }
+
+  li.module-item > span a {
+    padding: .25em .35em;
+  }
 
   /* right module menu */
   .module-item .module-item-menu { position: absolute; right: 0; top: 0; z-index: 5; }
@@ -508,6 +530,8 @@ span.build-state {
     margin-left: .3em;
     border-radius: .3em;
     border: 1px solid #e4e4e4;
+    font-size: .9em;
+    font-weight: normal;
     color: #fff;
 }
 
