@@ -14,12 +14,38 @@ from doc_builder.base import BaseBuilder, restoring_chdir
 from projects.utils import run, safe_write
 from projects.exceptions import ProjectImportError
 from tastyapi import apiv2
+import sphinx
+
+
+# importing the sphinx lib and not our local sphinx module
+import imp, sys
+f, pathname, desc = imp.find_module('sphinx', sys.path[1:])
+sphinx_lib = imp.load_module('sphinx', f, pathname, desc)
 
 log = logging.getLogger(__name__)
 
 TEMPLATE_DIR = '%s/readthedocs/templates/sphinx' % settings.SITE_ROOT
 STATIC_DIR = '%s/_static' % TEMPLATE_DIR
 PDF_RE = re.compile('Output written on (.*?)')
+
+
+from cStringIO import StringIO
+
+
+class Capturing(list):
+    def __enter__(self):
+        self._stdout = sys.stdout
+        self._stderr = sys.stderr
+        sys.stdout = self._stringio_out = StringIO()
+        sys.stderr = self._stringio_err = StringIO()
+        return self
+    def __exit__(self, *args):
+        self.extend([self._stringio_out.getvalue().splitlines(),
+                    self._stringio_err.getvalue().splitlines(),
+                    ])
+        sys.stdout = self._stdout
+        sys.stderr = self._stderr
+
 
 
 class BaseSphinx(BaseBuilder):
@@ -124,8 +150,18 @@ class BaseSphinx(BaseBuilder):
             project.language,
             self.sphinx_build_dir,
         )
-        results = run(build_command, shell=True)
-        return results
+        
+        build_command_list = [
+            "-T %s" % force_str,
+            "-b %s" % self.sphinx_builder,
+            "-D language=%s" % project.language,
+            ". %s " % self.sphinx_build_dir,
+        ]
+        
+        with Capturing() as output:
+            results = sphinx_lib.main(build_command_list)
+        
+        return output
 
 
 class HtmlBuilder(BaseSphinx):
