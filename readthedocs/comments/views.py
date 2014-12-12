@@ -2,6 +2,8 @@ import json
 
 from .backend import DjangoStorage
 from .session import UnsafeSessionAuthentication
+
+from django.core import serializers
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from sphinx.websupport import WebSupport
@@ -38,9 +40,19 @@ support = WebSupport(
 @permission_classes([permissions.IsAuthenticatedOrReadOnly])
 @renderer_classes((JSONRenderer, JSONPRenderer, BrowsableAPIRenderer))
 def get_comments(request):
-    username = None
     node_id = request.GET.get('node', '')
-    data = support.get_data(node_id, username=username)
+    node = get_node_from_request(request=request, hash=node_id)
+    ret_comments = []
+    for comment in node.comments.all():
+        json_data = json.loads(serializers.serialize("json", [comment]))[0]
+        fields = json_data['fields']
+        fields['pk'] = json_data['pk']
+        ret_comments.append(
+            fields
+        )
+
+    data = {'source': '',
+            'comments': ret_comments}
     if data:
         return Response(data)
     else:
@@ -77,11 +89,8 @@ def add_comment(request):
     except KeyError:
         return Response("You must provide a node (hash) and initial commit.",
                         status=status.HTTP_400_BAD_REQUEST)
-    try:
-        snapshot = NodeSnapshot.objects.get(hash=hash)
-        node = snapshot.node
-        created = False
-    except NodeSnapshot.DoesNotExist:
+    node = get_node_from_request(request=request, hash=hash)
+    if not node:
         project = Project.objects.get(slug=request.DATA['project'])
         version = project.versions.get(slug=request.DATA['version'])
         node = DocumentNode.objects.create(project=project,
@@ -97,9 +106,6 @@ def add_comment(request):
                                              user=request.user)
 
     serialized_comment = DocumentCommentSerializer(comment)
-    response_dict = serialized_comment.data
-    response_dict['created'] = created
-
     return Response(serialized_comment.data)
 
 
@@ -173,13 +179,27 @@ def add_node(request):
 @renderer_classes((JSONRenderer,))
 def update_node(request):
     post_data = request.DATA
+    old_hash = post_data.get('old_hash')
+    node = get_node_from_request(request=request, hash=old_hash)
     try:
-        old_hash = post_data['old_hash']
         new_hash = post_data['new_hash']
-        commit = post_data['commit']
-        node = DocumentNode.objects.from_hash(hash=old_hash)
         node.update_hash(new_hash, commit)
         return Response(DocumentNodeSerializer(node).data)
     except KeyError:
         return Response("You must include new_hash and commit in POST payload to this view.",
                         status.HTTP_400_BAD_REQUEST)
+
+
+def get_node_from_request(request, hash):
+    post_data = request.DATA
+    if not post_data:
+        post_data = request.QUERY_PARAMS
+    project = post_data.get('project', '')
+    version = post_data.get('version', '')
+    page = post_data.get('page', '')
+
+    project_obj = Project.objects.get(slug=project)
+    version_obj = project_obj.versions.get(slug=version)
+
+    node = DocumentNode.objects.from_hash(project=project_obj, version=version_obj, page=page, hash=hash)
+    return node
