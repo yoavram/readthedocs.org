@@ -1,3 +1,4 @@
+import datetime
 import getpass
 import logging
 import os
@@ -84,6 +85,12 @@ def trigger_build(project, version=None, record=True, force=False, basic=False):
 
     if not version:
         version = project.versions.get(slug='latest')
+
+    one_hour_ago = datetime.datetime.now() - datetime.timedelta(hours=1)
+    recent_builds = Build.objects.filter(project=project, date__gte=one_hour_ago, type='html')
+
+    if recent_builds.count() > getattr(settings, 'BUILD_RATE_LIMIT', 5):
+        return None
 
     if record:
         build = Build.objects.create(
