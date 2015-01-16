@@ -24,6 +24,7 @@ from builds.models import VersionAlias
 from core.utils import trigger_build
 from oauth.models import GithubProject, BitbucketProject
 from oauth import utils as oauth_utils
+from projects.backends.forms import GitHubImportForm
 from projects.forms import (ProjectBackendForm, ProjectBasicsForm,
                             ProjectExtraForm, ProjectAdvancedForm,
                             UpdateProjectForm, SubprojectForm,
@@ -296,6 +297,7 @@ class ImportView(TemplateView):
 
 
 class ImportDemoView(View):
+
     '''View to pass request on to import form to import demo project'''
 
     form_class = ProjectBasicsForm
@@ -564,19 +566,24 @@ def project_redirects_delete(request, project_slug):
 @login_required
 def project_import_github(request, sync=False):
     '''Show form that prefills import form with data from GitHub'''
+
+    if request.method == 'POST':
+        form = GitHubImportForm(data=request.POST or None, user=request.user)
+        if form.is_valid():
+            project = form.save()
+            gh_project = GithubProject.objects.get(pk=request.POST['repo_pk'])
+            gh_project.project = project
+            gh_project.save()
+            messages.success(request, _('Successfully created %s' % project.name))
+        return HttpResponseRedirect(reverse('projects_import_github'))
+
     github_connected = oauth_utils.import_github(user=request.user, sync=sync)
     repos = GithubProject.objects.filter(users__in=[request.user])
 
     # Find existing projects that match a repo url
     for repo in repos:
-        ghetto_repo = repo.git_url.replace('git://', '').replace('.git', '')
-        projects = (Project
-                    .objects
-                    .public(request.user)
-                    .filter(Q(repo__endswith=ghetto_repo) |
-                            Q(repo__endswith=ghetto_repo + '.git')))
-        if projects:
-            repo.matches = [project.slug for project in projects]
+        if repo.project:
+            repo.matches = [repo.project]
         else:
             repo.matches = []
 

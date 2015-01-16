@@ -34,6 +34,9 @@ class GithubProject(models.Model):
                                    related_name='github_projects')
     organization = models.ForeignKey(GithubOrganization, verbose_name=_('Organization'),
                                      related_name='projects', null=True, blank=True)
+
+    project = models.ForeignKey('projects.Project', verbose_name=_('Project'), related_name='github_origin', null=True, blank=True)
+
     name = models.CharField(_('Name'), max_length=255)
     full_name = models.CharField(_('Full Name'), max_length=255)
     description = models.TextField(_('Description'), blank=True, null=True,
