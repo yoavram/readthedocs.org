@@ -3,7 +3,7 @@ How we use symlinks
 
 Read the Docs stays highly available by serving all documentation pages out of nginx.
 This means that they never hit our Python layer,
-meaning that they never hit out database.
+meaning that they never hit our database.
 This reduces the total number of servers to serve a request to 1,
 each of which is redundant.
 
@@ -75,6 +75,6 @@ $host would be ``docs.fabfile.org``:
         error_page 500 = @fallback;
     }
 
-Notice that nowhere in the above path is the projects slug mentioned.
+Notice that nowhere in the above path is the project's slug mentioned.
 It is simply there in the symlink in the cnames directory,
 and the docs are served from there.

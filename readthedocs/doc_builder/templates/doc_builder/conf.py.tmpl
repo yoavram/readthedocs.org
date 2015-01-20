@@ -84,6 +84,21 @@ context = {
     'single_version': {{ state.core.single_version }},
     'conf_py_path': '{{ state.fs.conf_file }}',
     'api_host': '{{ state.settings.API_HOST }}',
+    'github_user': '{{ github_user }}',
+    'github_repo': '{{ github_repo }}',
+    'github_version': '{{ github_version }}',
+    'display_github': {{ display_github }},
+    'bitbucket_user': '{{ bitbucket_user }}',
+    'bitbucket_repo': '{{ bitbucket_repo }}',
+    'bitbucket_version': '{{ bitbucket_version }}',
+    'display_bitbucket': {{ display_bitbucket }},
+    'READTHEDOCS': True,
+    'using_theme': (html_theme == "default"),
+    'new_theme': (html_theme == "sphinx_rtd_theme"),
+    'source_suffix': SUFFIX,
+    'user_analytics_code': '{{ project.analytics_code|default_if_none:'' }}',
+    'global_analytics_code': '{{ settings.GLOBAL_ANALYTICS_CODE }}',
+    'commit': '{{ commit }}',
 }
 
 if state.vcs.display_github:

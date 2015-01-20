@@ -6,77 +6,16 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _, ugettext
 
-from guardian.shortcuts import assign, get_objects_for_user
+from guardian.shortcuts import assign
 from taggit.managers import TaggableManager
 
+from privacy.loader import VersionManager, RelatedProjectManager
 from projects.models import Project
 from projects import constants
 from .constants import BUILD_STATE, BUILD_TYPES, VERSION_TYPES
 
 
-class VersionManager(models.Manager):
-    def _filter_queryset(self, user, project, privacy_level, only_active):
-        if isinstance(privacy_level, basestring):
-            privacy_level = (privacy_level,)
-        queryset = Version.objects.filter(privacy_level__in=privacy_level)
-        # Remove this so we can use public() for all active public projects
-        #if not user and not project:
-            #return queryset
-        if user and user.is_authenticated():
-            # Add in possible user-specific views
-            user_queryset = get_objects_for_user(user, 'builds.view_version')
-            queryset = user_queryset | queryset
-        elif user:
-            # Hack around get_objects_for_user not supporting global perms
-            global_access = user.has_perm('builds.view_version')
-            if global_access:
-                queryset = Version.objects.all()
-        if project:
-            # Filter by project if requested
-            queryset = queryset.filter(project=project)
-        if only_active:
-            queryset = queryset.filter(active=True)
-        return queryset
-
-    def active(self, user=None, project=None, *args, **kwargs):
-        queryset = self._filter_queryset(
-            user,
-            project,
-            privacy_level=(constants.PUBLIC, constants.PROTECTED,
-                           constants.PRIVATE),
-            only_active=True,
-        )
-        return queryset.filter(*args, **kwargs)
-
-    def public(self, user=None, project=None, only_active=True, *args,
-               **kwargs):
-        queryset = self._filter_queryset(
-            user,
-            project,
-            privacy_level=(constants.PUBLIC),
-            only_active=only_active
-        )
-        return queryset.filter(*args, **kwargs)
-
-    def protected(self, user=None, project=None, only_active=True, *args,
-                  **kwargs):
-        queryset = self._filter_queryset(
-            user,
-            project,
-            privacy_level=(constants.PUBLIC, constants.PROTECTED),
-            only_active=only_active
-        )
-        return queryset.filter(*args, **kwargs)
-
-    def private(self, user=None, project=None, only_active=True, *args,
-                **kwargs):
-        queryset = self._filter_queryset(
-            user,
-            project,
-            privacy_level=(constants.PRIVATE),
-            only_active=only_active
-        )
-        return queryset.filter(*args, **kwargs)
+DEFAULT_VERSION_PRIVACY_LEVEL = getattr(settings, 'DEFAULT_VERSION_PRIVACY_LEVEL', 'public')
 
 
 class Version(models.Model):
@@ -98,9 +37,10 @@ class Version(models.Model):
     uploaded = models.BooleanField(_('Uploaded'), default=False)
     privacy_level = models.CharField(
         _('Privacy Level'), max_length=20, choices=constants.PRIVACY_CHOICES,
-        default='public', help_text=_("Level of privacy for this Version.")
+        default=DEFAULT_VERSION_PRIVACY_LEVEL, help_text=_("Level of privacy for this Version.")
     )
     tags = TaggableManager(blank=True)
+    machine = models.BooleanField(_('Machine Created'), default=False)
     objects = VersionManager()
 
     class Meta:
@@ -134,8 +74,7 @@ class Version(models.Model):
         self.project.sync_supported_versions()
         return obj
 
-
-    @property 
+    @property
     def remote_slug(self):
         if self.slug == 'latest':
             if self.project.default_branch:
@@ -145,6 +84,13 @@ class Version(models.Model):
         else:
             return self.slug
 
+    @property
+    def identifier_friendly(self):
+        '''Return display friendly identifier'''
+        re_sha = re.compile(r'^[0-9a-f]{40}$', re.I)
+        if re_sha.match(str(self.identifier)):
+            return self.identifier[:8]
+        return self.identifier
 
     def get_subdomain_url(self):
         use_subdomain = getattr(settings, 'USE_SUBDOMAIN', False)
@@ -173,23 +119,18 @@ class Version(models.Model):
         data = {}
         if pretty:
             if project.has_pdf(self.slug):
-                data['PDF'] = project.get_pdf_url(self.slug)
+                data['PDF'] = project.get_production_media_url('pdf', self.slug)
             if project.has_htmlzip(self.slug):
-                data['HTML'] = project.get_htmlzip_url(self.slug)
+                data['HTML'] = project.get_production_media_url('htmlzip', self.slug)
             if project.has_epub(self.slug):
-                data['Epub'] = project.get_epub_url(self.slug)
+                data['Epub'] = project.get_production_media_url('epub', self.slug)
         else:
             if project.has_pdf(self.slug):
-                data['pdf_url'] = project.get_pdf_url(self.slug)
+                data['pdf_url'] = project.get_production_media_url('pdf', self.slug)
             if project.has_htmlzip(self.slug):
-                data['htmlzip_url'] = project.get_htmlzip_url(self.slug)
+                data['htmlzip_url'] = project.get_production_media_url('htmlzip', self.slug)
             if project.has_epub(self.slug):
-                data['epub_url'] = project.get_epub_url(self.slug)
-            #if project.has_manpage(self.slug):
-                #data['manpage_url'] = project.get_manpage_url(self.slug)
-            if project.has_dash(self.slug):
-                data['dash_url'] = project.get_dash_url(self.slug)
-                data['dash_feed_url'] = project.get_dash_feed_url(self.slug)
+                data['epub_url'] = project.get_production_media_url('epub', self.slug)
         return data
 
     def get_conf_py_path(self):
@@ -207,19 +148,30 @@ class Version(models.Model):
             return path
         return None
 
-    def get_github_url(self, docroot, filename, source_suffix='.rst'):
+    def get_github_url(self, docroot, filename, source_suffix='.rst', action='view'):
         GITHUB_REGEXS = [
             re.compile('github.com/(.+)/(.+)(?:\.git){1}'),
             re.compile('github.com/(.+)/(.+)'),
             re.compile('github.com:(.+)/(.+).git'),
         ]
-        GITHUB_URL = 'https://github.com/{user}/{repo}/blob/{version}{docroot}{path}{source_suffix}'
+        GITHUB_URL = 'https://github.com/{user}/{repo}/{action}/{version}{docroot}{path}{source_suffix}'
 
         repo_url = self.project.repo
         if 'github' not in repo_url:
             return ''
+
         if not docroot:
             return ''
+        else:
+            if docroot[0] != '/':
+                docroot = "/%s" % docroot
+            if docroot[-1] != '/':
+                docroot = "%s/" % docroot
+
+        if action == 'view':
+            action_string = 'blob'
+        elif action == 'edit':
+            action_string = 'edit'
 
         for regex in GITHUB_REGEXS:
             match = regex.search(repo_url)
@@ -237,7 +189,8 @@ class Version(models.Model):
             docroot=docroot,
             path=filename,
             source_suffix=source_suffix,
-            )
+            action=action_string,
+        )
 
     def get_bitbucket_url(self, docroot, filename, source_suffix='.rst'):
         BB_REGEXS = [
@@ -269,8 +222,7 @@ class Version(models.Model):
             docroot=docroot,
             path=filename,
             source_suffix=source_suffix,
-            )
-
+        )
 
 
 class VersionAlias(models.Model):
@@ -300,13 +252,18 @@ class Build(models.Model):
                              default='finished')
     date = models.DateTimeField(_('Date'), auto_now_add=True)
     success = models.BooleanField(_('Success'), default=True)
-    
+
     setup = models.TextField(_('Setup'), null=True, blank=True)
     setup_error = models.TextField(_('Setup error'), null=True, blank=True)
     output = models.TextField(_('Output'), default='', blank=True)
     error = models.TextField(_('Error'), default='', blank=True)
     exit_code = models.IntegerField(_('Exit code'), max_length=3, null=True,
                                     blank=True)
+    commit = models.CharField(_('Commit'), max_length=255, null=True, blank=True)
+
+    # Manager
+
+    objects = RelatedProjectManager()
 
     class Meta:
         ordering = ['-date']
@@ -323,3 +280,8 @@ class Build(models.Model):
     @models.permalink
     def get_absolute_url(self):
         return ('builds_detail', [self.project.slug, self.pk])
+
+    @property
+    def finished(self):
+        '''Return if build has a finished state'''
+        return self.state == 'finished'

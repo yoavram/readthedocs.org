@@ -1,25 +1,27 @@
+import re
 import os
-import shutil
 import codecs
 import json
 from glob import glob
 import logging
 import zipfile
 
-from django.template import Template, Context, loader as template_loader
-from django.contrib.auth.models import SiteProfileNotAvailable
-from django.core.exceptions import ObjectDoesNotExist
+from django.template import Context, loader as template_loader
+from django.template.loader import render_to_string
 from django.conf import settings
 
 from builds import utils as version_utils
 from doc_builder.base import BaseBuilder, restoring_chdir
-from projects.utils import run
+from projects.utils import run, safe_write
+from projects.exceptions import ProjectImportError
 from tastyapi import apiv2
 
 log = logging.getLogger(__name__)
 
 TEMPLATE_DIR = '%s/readthedocs/templates/sphinx' % settings.SITE_ROOT
 STATIC_DIR = '%s/_static' % TEMPLATE_DIR
+PDF_RE = re.compile('Output written on (.*?)')
+
 
 def _json(obj):
   """Represent instance of a class as JSON.
@@ -48,6 +50,7 @@ def _json(obj):
   return json.dumps(serialize(obj))
 
 class BaseSphinx(BaseBuilder):
+
     """
     The parent for most sphinx builders.
     """
@@ -70,11 +73,38 @@ class BaseSphinx(BaseBuilder):
         results = run(build_command, shell=True)
         return results
 
+        try:
+            self.old_artifact_path = os.path.join(self.version.project.conf_dir(self.version.slug), self.sphinx_build_dir)
+        except ProjectImportError:
+            docs_dir = self.docs_dir()
+            self.old_artifact_path = os.path.join(docs_dir, self.sphinx_build_dir)
 
+    def _write_config(self):
+        """
+        Create ``conf.py`` if it doesn't exist.
+        """
+        docs_dir = self.docs_dir()
+        conf_template = render_to_string('sphinx/conf.py.conf',
+                                         {'project': self.version.project,
+                                          'version': self.version,
+                                          'template_dir': TEMPLATE_DIR,
+                                          })
+        conf_file = os.path.join(docs_dir, 'conf.py')
+        safe_write(conf_file, conf_template)
 
     def append_conf(self, **kwargs):
         """Modify the given ``conf.py`` file from a whitelisted user's project.
         """
+
+        # Pull config data
+        try:
+            conf_py_path = version_utils.get_conf_py_path(self.version)
+        except ProjectImportError:
+            self._write_config()
+            self.create_index(extension='rst')
+
+        project = self.version.project
+        # Open file for appending.
         outfile = codecs.open(self.state.fs.conf_file, encoding='utf-8', mode='a')
         outfile.write("\n")
 
@@ -102,8 +132,35 @@ class BaseSphinx(BaseBuilder):
             # 'bitbucket_version':  remote_version,
             # 'display_bitbucket': display_bitbucket,
         })
+
+        # Avoid hitting database and API if using Docker build environment
+        if getattr(settings, 'DONT_HIT_API', False):
+            rtd_ctx['versions'] = project.active_versions()
+            rtd_ctx['downloads'] = self.version.get_downloads(pretty=True)
+        else:
+            rtd_ctx['versions'] = project.api_versions()
+            rtd_ctx['downloads'] = (apiv2.version(self.version.pk)
+                                    .downloads.get()['downloads'])
+
         rtd_string = template_loader.get_template('doc_builder/conf.py.tmpl').render(rtd_ctx)
         outfile.write(rtd_string)
+
+    @restoring_chdir
+    def build(self, **kwargs):
+        self.clean()
+        project = self.version.project
+        os.chdir(project.conf_dir(self.version.slug))
+        force_str = " -E " if self._force else ""
+        build_command = "%s -T %s -b %s -D language=%s . %s " % (
+            project.venv_bin(version=self.version.slug,
+                             bin='sphinx-build'),
+            force_str,
+            self.sphinx_builder,
+            project.language,
+            self.sphinx_build_dir,
+        )
+        results = run(build_command, shell=True)
+        return results
 
 
 class HtmlBuilder(BaseSphinx):
@@ -127,7 +184,7 @@ class SearchBuilder(BaseSphinx):
     sphinx_builder = 'json'
     sphinx_build_dir = '_build/json'
 
-    
+
 class LocalMediaBuilder(BaseSphinx):
     type = 'sphinx_localmedia'
     sphinx_builder = 'readthedocssinglehtmllocalmedia'
@@ -171,23 +228,22 @@ class EpubBuilder(BaseSphinx):
             to_file = os.path.join(self.target, "%s.epub" % self.version.project.slug)
             run('mv -f %s %s' % (from_file, to_file))
 
+
 class PdfBuilder(BaseSphinx):
     type = 'sphinx_pdf'
     sphinx_build_dir = '_build/latex'
+    pdf_file_name = None
 
     @restoring_chdir
     def build(self, **kwargs):
+        self.clean()
         project = self.version.project
         os.chdir(project.conf_dir(self.version.slug))
-        #Default to this so we can return it always.
+        # Default to this so we can return it always.
         results = {}
-        if project.use_virtualenv:
-            latex_results = run('%s -b latex -D language=%s -d _build/doctrees . _build/latex'
-                                % (project.env_bin(version=self.version.slug,
-                                                   bin='sphinx-build'), project.language))
-        else:
-            latex_results = run('sphinx-build -b latex -D language=%s -d _build/doctrees '
-                                '. _build/latex' % project.language)
+        latex_results = run('%s -b latex -D language=%s -d _build/doctrees . _build/latex'
+                            % (project.venv_bin(version=self.version.slug,
+                                                bin='sphinx-build'), project.language))
 
         if latex_results[0] == 0:
             os.chdir('_build/latex')
@@ -196,18 +252,24 @@ class PdfBuilder(BaseSphinx):
             if tex_files:
                 # Run LaTeX -> PDF conversions
                 pdflatex_cmds = [('pdflatex -interaction=nonstopmode %s'
-                                 % tex_file) for tex_file in tex_files]
-                # Run twice because of https://github.com/rtfd/readthedocs.org/issues/749
+                                  % tex_file) for tex_file in tex_files]
+                makeindex_cmds = [('makeindex -s python.ist %s.idx'
+                                   % os.path.splitext(tex_file)[0]) for tex_file in tex_files]
                 pdf_results = run(*pdflatex_cmds)
+                ind_results = run(*makeindex_cmds)
                 pdf_results = run(*pdflatex_cmds)
             else:
                 pdf_results = (0, "No tex files found", "No tex files found")
+                ind_results = (0, "No tex files found", "No tex files found")
 
             results = [
-                latex_results[0] + pdf_results[0],
-                latex_results[1] + pdf_results[1],
-                latex_results[2] + pdf_results[2],
+                latex_results[0] + ind_results[0] + pdf_results[0],
+                latex_results[1] + ind_results[1] + pdf_results[1],
+                latex_results[2] + ind_results[2] + pdf_results[2],
             ]
+            pdf_match = PDF_RE.search(results[1])
+            if pdf_match:
+                self.pdf_file_name = pdf_match.group(1).strip()
         else:
             results = latex_results
         return results
@@ -219,6 +281,8 @@ class PdfBuilder(BaseSphinx):
         exact = os.path.join(self.old_artifact_path, "%s.pdf" % self.version.project.slug)
         exact_upper = os.path.join(self.old_artifact_path, "%s.pdf" % self.version.project.slug.capitalize())
 
+        if self.pdf_file_name and os.path.exists(self.pdf_file_name):
+            from_file = self.pdf_file_name
         if os.path.exists(exact):
             from_file = exact
         elif os.path.exists(exact_upper):
@@ -232,4 +296,3 @@ class PdfBuilder(BaseSphinx):
         if from_file:
             to_file = os.path.join(self.target, "%s.pdf" % self.version.project.slug)
             run('mv -f %s %s' % (from_file, to_file))
-

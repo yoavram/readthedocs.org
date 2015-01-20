@@ -31,6 +31,7 @@ class Backend(BaseVCS):
         return update_output
 
     def clone(self):
+        self.make_clean_working_dir()
         output = self.run('hg', 'clone', self.repo_url, '.')
         if output[0] != 0:
             raise ProjectImportError(
@@ -91,6 +92,11 @@ class Backend(BaseVCS):
             revision, commit_hash = commit.split(':')
             vcs_tags.append(VCSVersion(self, commit_hash, name))
         return vcs_tags
+
+    @property
+    def commit(self):
+        retcode, stdout = self.run('hg', 'id', '-i')[:2]
+        return stdout.strip()
 
     def checkout(self, identifier=None):
         super(Backend, self).checkout()

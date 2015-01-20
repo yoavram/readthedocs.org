@@ -3,11 +3,14 @@
 Localization of Documentation
 =============================
 
+.. note:: This feature only applies to Sphinx documentation. We are working to bring it to our other documentation backends.
+
 Read the Docs supports hosting your docs in multiple languages.
 There are two different things that we support:
 
 * A single project written in another language
 * A project with translations into multiple languages
+
 
 Single project in another language
 ----------------------------------
@@ -20,6 +23,8 @@ The language will be represented in the URL for you project.
 
 For example,
 a project that is in spanish will have a default URL of ``/es/latest/`` instead of ``/en/latest/``.
+
+.. note:: You must commit the ``.mo`` files for Read the Docs to translate your documentation.
 
 Project with multiple translations
 ----------------------------------
@@ -44,3 +49,4 @@ This has the results of serving:
 It also gets included in the Read the Docs flyout:
 
 .. image:: /img/translation_bar.png
+

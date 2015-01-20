@@ -13,9 +13,11 @@ import redis
 
 log = logging.getLogger(__name__)
 
-LOG_TEMPLATE = "(Middleware) {msg} [{host}{path}]"
+LOG_TEMPLATE = u"(Middleware) {msg} [{host}{path}]"
+
 
 class SubdomainMiddleware(object):
+
     def process_request(self, request):
         host = request.get_host()
         path = request.get_full_path()
@@ -57,8 +59,8 @@ class SubdomainMiddleware(object):
                         answer = [ans for ans in resolver.query(host, 'CNAME')][0]
                         domain = answer.target.to_unicode()
                         slug = domain.split('.')[0]
-                        cache.set(host, slug, 60*60)
-                        #Cache the slug -> host mapping permanently.
+                        cache.set(host, slug, 60 * 60)
+                        # Cache the slug -> host mapping permanently.
                         redis_conn.sadd("rtd_slug:v1:%s" % slug, host)
                         log.debug(LOG_TEMPLATE.format(msg='CNAME cached: %s->%s' % (slug, host), **log_kwargs))
                     request.slug = slug
@@ -71,6 +73,10 @@ class SubdomainMiddleware(object):
         # Google was finding crazy www.blah.readthedocs.org domains.
         # Block these explicitly after trying CNAME logic.
         if len(domain_parts) > 3:
+            # Stop www.fooo.readthedocs.org
+            if domain_parts[0] == 'www':
+                log.debug(LOG_TEMPLATE.format(msg='404ing long domain', **log_kwargs))
+                raise Http404(_('Invalid hostname'))
             log.debug(LOG_TEMPLATE.format(msg='Allowing long domain name', **log_kwargs))
             #raise Http404(_('Invalid hostname'))
         # Normal request.
@@ -78,12 +84,14 @@ class SubdomainMiddleware(object):
 
 
 class SingleVersionMiddleware(object):
+
     """Reset urlconf for requests for 'single_version' docs.
 
     In settings.MIDDLEWARE_CLASSES, SingleVersionMiddleware must follow
     after SubdomainMiddleware.
 
     """
+
     def _get_slug(self, request):
         """Get slug from URLs requesting docs.
 

@@ -35,7 +35,7 @@ def symlink_cnames(version):
         symlink = version.project.cnames_symlink_path(cname)
         run_on_app_servers('mkdir -p %s' % '/'.join(symlink.split('/')[:-1]))
         run_on_app_servers('ln -nsf %s %s' % (docs_dir, symlink))
-        # New symlink location 
+        # New symlink location
         new_docs_dir = version.project.doc_path
         new_cname_symlink = os.path.join(getattr(settings, 'SITE_ROOT'), 'cnametoproject', cname)
         run_on_app_servers('mkdir -p %s' % '/'.join(new_cname_symlink.split('/')[:-1]))
@@ -48,9 +48,13 @@ def symlink_subprojects(version):
               HOME/user_builds/<project>/rtd-builds/
     """
     # Subprojects
-    subprojects = apiv2.project(version.project.pk).subprojects.get()['subprojects']
-    for subproject_data in subprojects:
-        slugs = [subproject_data['slug']]
+    if getattr(settings, 'DONT_HIT_DB', True):
+        subproject_slugs = [data['slug'] for data in apiv2.project(version.project.pk).subprojects.get()['subprojects']]
+    else:
+        rels = version.project.subprojects.all()
+        subproject_slugs = [rel.child.slug for rel in rels]
+    for slug in subproject_slugs:
+        slugs = [slug]
         if '_' in slugs[0]:
             slugs.append(slugs[0].replace('_', '-'))
         for subproject_slug in slugs:
@@ -70,38 +74,46 @@ def symlink_translations(version):
     Link from HOME/user_builds/project/translations/<lang> ->
               HOME/user_builds/<project>/rtd-builds/
     """
-    translations = apiv2.project(version.project.pk).translations.get()['translations']
-    for translation_data in translations:
-        translation_slug = translation_data['slug'].replace('_', '-')
-        translation_language = translation_data['language']
-        log.debug(LOG_TEMPLATE.format(project=version.project.slug, version=version.slug, msg="Symlinking translation: %s->%s" % (translation_language, translation_slug)))
+    translations = {}
+
+    if getattr(settings, 'DONT_HIT_DB', True):
+        for trans in (apiv2
+                      .project(version.project.pk)
+                      .translations.get()['translations']):
+            translations[trans['language']] = trans['slug']
+    else:
+        for trans in version.project.translations.all():
+            translations[trans.language] = trans.slug
+
+    # Default language, and pointer for 'en'
+    version_slug = version.project.slug.replace('_', '-')
+    translations[version.project.language] = version_slug
+    if not translations.has_key('en'):
+        translations['en'] = version_slug
+
+    run_on_app_servers(
+        'mkdir -p {0}'
+        .format(os.path.join(version.project.doc_path, 'translations')))
+
+    for (language, slug) in translations.items():
+        log.debug(LOG_TEMPLATE.format(
+            project=version.project.slug,
+            version=version.slug,
+            msg="Symlinking translation: %s->%s" % (language, slug)
+        ))
 
         # The directory for this specific translation
-        symlink = version.project.translations_symlink_path(translation_language)
-        run_on_app_servers('mkdir -p %s' % '/'.join(symlink.split('/')[:-1]))
+        symlink = version.project.translations_symlink_path(language)
+        translation_path = os.path.join(settings.DOCROOT, slug, 'rtd-builds')
+        run_on_app_servers('ln -nsf {0} {1}'.format(translation_path, symlink))
 
-        # Where the actual docs live
-        docs_dir = os.path.join(settings.DOCROOT, translation_slug, 'rtd-builds')
-        run_on_app_servers('ln -nsf %s %s' % (docs_dir, symlink))
-
-    # Hack in the en version for backwards compat
-    symlink = version.project.translations_symlink_path('en')
-    run_on_app_servers('mkdir -p %s' % '/'.join(symlink.split('/')[:-1]))
-    docs_dir = os.path.join(version.project.doc_path, 'rtd-builds')
-    run_on_app_servers('ln -nsf %s %s' % (docs_dir, symlink))
-    # Add the main language project to nginx too
-    if version.project.language is not 'en':
-        symlink = version.project.translations_symlink_path(version.project.language)
-        run_on_app_servers('mkdir -p %s' % '/'.join(symlink.split('/')[:-1]))
-        docs_dir = os.path.join(settings.DOCROOT, version.project.slug.replace('_', '-'), 'rtd-builds')
-        run_on_app_servers('ln -nsf %s %s' % (docs_dir, symlink))
 
 def symlink_single_version(version):
     """
     Link from HOME/user_builds/<project>/single_version ->
               HOME/user_builds/<project>/rtd-builds/<default_version>/
     """
-    default_version = version.project.default_version
+    default_version = version.project.get_default_version()
     log.debug(LOG_TEMPLATE.format(project=version.project.slug, version=default_version, msg="Symlinking single_version"))
 
     # The single_version directory
@@ -112,13 +124,13 @@ def symlink_single_version(version):
     docs_dir = os.path.join(settings.DOCROOT, version.project.slug, 'rtd-builds', default_version)
     run_on_app_servers('ln -nsf %s %s' % (docs_dir, symlink))
 
+
 def remove_symlink_single_version(version):
     """Remove single_version symlink"""
     log.debug(LOG_TEMPLATE.format(
         project=version.project.slug,
-        version=version.project.default_version,
+        version=version.project.get_default_version(),
         msg="Removing symlink for single_version")
     )
     symlink = version.project.single_version_symlink_path()
     run_on_app_servers('rm -f %s' % symlink)
-

@@ -34,6 +34,7 @@ class Backend(BaseVCS):
         return up_output
 
     def clone(self):
+        self.make_clean_working_dir()
         retcode = self.run('bzr', 'checkout', self.repo_url, '.')[0]
         if retcode != 0:
             raise ProjectImportError(
@@ -74,6 +75,11 @@ class Backend(BaseVCS):
             if commit != '?':
                 vcs_tags.append(VCSVersion(self, commit, name))
         return vcs_tags
+
+    @property
+    def commit(self):
+        retcode, stdout = self.run('bzr', 'revno')[:2]
+        return stdout.strip()
 
     def checkout(self, identifier=None):
         super(Backend, self).checkout()

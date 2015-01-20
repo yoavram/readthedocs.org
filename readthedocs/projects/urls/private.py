@@ -1,6 +1,8 @@
 from django.conf.urls import patterns, url
 
-from projects.views.private import AliasList, ProjectDashboard
+from projects.views.private import AliasList, ProjectDashboard, ImportView
+from projects.backends.views import ImportWizardView, ImportDemoView
+
 
 urlpatterns = patterns(
     # base view, flake8 complains if it is on the previous line.
@@ -10,8 +12,37 @@ urlpatterns = patterns(
         name='projects_dashboard'),
 
     url(r'^import/$',
-        'projects.views.private.project_import',
+        ImportView.as_view(wizard_class=ImportWizardView),
+        {'wizard': ImportWizardView},
         name='projects_import'),
+
+    url(r'^import/manual/$',
+        ImportWizardView.as_view(),
+        name='projects_import_manual'),
+
+    url(r'^import/manual/demo/$',
+        ImportDemoView.as_view(),
+        name='projects_import_demo'),
+
+    url(r'^import/github/$',
+        'projects.views.private.project_import_github',
+        {'sync': False},
+        name='projects_import_github'),
+
+    url(r'^import/github/sync/$',
+        'projects.views.private.project_import_github',
+        {'sync': True},
+        name='projects_sync_github'),
+
+    url(r'^import/bitbucket/$',
+        'projects.views.private.project_import_bitbucket',
+        {'sync': False},
+        name='projects_import_bitbucket'),
+
+    url(r'^import/bitbucket/sync/$',
+        'projects.views.private.project_import_bitbucket',
+        {'sync': True},
+        name='projects_sync_bitbucket'),
 
     url(r'^(?P<project_slug>[-\w]+)/$',
         'projects.views.private.project_manage',
@@ -80,4 +111,12 @@ urlpatterns = patterns(
     url(r'^(?P<project_slug>[-\w]+)/translations/delete/(?P<child_slug>[-\w]+)/$',  # noqa
         'projects.views.private.project_translations_delete',
         name='projects_translations_delete'),
+
+    url(r'^(?P<project_slug>[-\w]+)/redirects/$',
+        'projects.views.private.project_redirects',
+        name='projects_redirects'),
+
+    url(r'^(?P<project_slug>[-\w]+)/redirects/delete/$',
+        'projects.views.private.project_redirects_delete',
+        name='projects_redirects_delete'),
 )

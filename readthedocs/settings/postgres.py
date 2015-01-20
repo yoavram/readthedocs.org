@@ -60,6 +60,13 @@ REPO_LOCK_SECONDS = 300
 # Don't re-confirm existing accounts
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 
+FILE_SYNCER = 'privacy.backends.syncers.DoubleRemotePuller'
+
+# set GitHub scope
+SOCIALACCOUNT_PROVIDERS = {
+    'github': {'SCOPE': ['user:email', 'read:org', 'admin:repo_hook', 'repo:status']}
+}
+
 try:
     from local_settings import *  # noqa
 except ImportError:

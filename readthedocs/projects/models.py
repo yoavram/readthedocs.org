@@ -11,9 +11,11 @@ from django.db import models
 from django.template.defaultfilters import slugify
 from django.utils.translation import ugettext_lazy as _
 
-from guardian.shortcuts import assign, get_objects_for_user
+from guardian.shortcuts import assign
 
 from betterversion.better import version_windows, BetterVersion
+from oauth import utils as oauth_utils
+from privacy.loader import RelatedProjectManager, ProjectManager
 from projects import constants
 from projects.exceptions import ProjectImportError
 from projects.templatetags.projects_tags import sort_version_aware
@@ -30,52 +32,6 @@ from vcs_support.utils import Lock, NonBlockingLock
 log = logging.getLogger(__name__)
 
 
-class ProjectManager(models.Manager):
-    def _filter_queryset(self, user, privacy_level):
-        if isinstance(privacy_level, basestring):
-            privacy_level = (privacy_level,)
-        queryset = Project.objects.filter(privacy_level__in=privacy_level)
-        if not user:
-            return queryset
-        else:
-            # Hack around get_objects_for_user not supporting global perms
-            global_access = user.has_perm('projects.view_project')
-            if global_access:
-                queryset = Project.objects.all()
-        if user.is_authenticated():
-            # Add in possible user-specific views
-            user_queryset = get_objects_for_user(user, 'projects.view_project')
-            queryset = user_queryset | queryset
-        return queryset.filter()
-
-    def live(self, *args, **kwargs):
-        base_qs = self.filter(skip=False)
-        return base_qs.filter(*args, **kwargs)
-
-    def public(self, user=None, *args, **kwargs):
-        """
-        Query for projects, privacy_level == public
-        """
-        queryset = self._filter_queryset(user, privacy_level=constants.PUBLIC)
-        return queryset.filter(*args, **kwargs)
-
-    def protected(self, user=None, *args, **kwargs):
-        """
-        Query for projects, privacy_level != private
-        """
-        queryset = self._filter_queryset(user,
-                                         privacy_level=(constants.PUBLIC,
-                                                        constants.PROTECTED))
-        return queryset.filter(*args, **kwargs)
-
-    def private(self, user=None, *args, **kwargs):
-        """
-        Query for projects, privacy_level != private
-        """
-        queryset = self._filter_queryset(user, privacy_level=constants.PRIVATE)
-        return queryset.filter(*args, **kwargs)
-
-
 class ProjectRelationship(models.Model):
     parent = models.ForeignKey('Project', verbose_name=_('Parent'),
                                related_name='subprojects')
@@ -85,18 +41,18 @@ class ProjectRelationship(models.Model):
     def __unicode__(self):
         return "%s -> %s" % (self.parent, self.child)
 
-    #HACK
+    # HACK
     def get_absolute_url(self):
         return ("http://%s.readthedocs.org/projects/%s/%s/latest/"
                 % (self.parent.slug, self.child.slug, self.child.language))
 
 
 class Project(models.Model):
-    #Auto fields
+    # Auto fields
     pub_date = models.DateTimeField(_('Publication date'), auto_now_add=True)
     modified_date = models.DateTimeField(_('Modified date'), auto_now=True)
 
-    #Generally from conf.py
+    # Generally from conf.py
     users = models.ManyToManyField(User, verbose_name=_('User'),
                                    related_name='projects')
     name = models.CharField(_('Name'), max_length=255)
@@ -105,15 +61,13 @@ class Project(models.Model):
                                    help_text=_('The reStructuredText '
                                                'description of the project'))
     repo = models.CharField(_('Repository URL'), max_length=100, blank=True,
-                            help_text=_('Checkout URL for your code (hg, git, '
-                                        'etc.). Ex. http://github.com/'
-                                        'ericholscher/django-kong.git'))
+                            help_text=_('Hosted documentation repository URL'))
     repo_type = models.CharField(_('Repository type'), max_length=10,
                                  choices=constants.REPO_CHOICES, default='git')
-    project_url = models.URLField(_('Project URL'), blank=True,
+    project_url = models.URLField(_('Project homepage'), blank=True,
                                   help_text=_('The project\'s homepage'))
     canonical_url = models.URLField(_('Canonical URL'), blank=True,
-                                  help_text=_('The official URL that the docs live at. This can be at readthedocs.org, or somewhere else. Ex. http://docs.fabfile.org'))
+                                    help_text=_('URL that documentation is expected to serve from'))
     version = models.CharField(_('Version'), max_length=100, blank=True,
                                help_text=_('Project version these docs apply '
                                            'to, i.e. 1.0a'))
@@ -143,12 +97,12 @@ class Project(models.Model):
         _('Requirements file'), max_length=255, default=None, null=True,
         blank=True, help_text=_(
             'Requires Virtualenv. A <a '
-            'href="http://www.pip-installer.org/en/latest/cookbook.html#requirements-files">'
+            'href="https://pip.pypa.io/en/latest/user_guide.html#requirements-files">'
             'pip requirements file</a> needed to build your documentation. '
             'Path from the root of your project.'))
     documentation_type = models.CharField(
         _('Documentation type'), max_length=20,
-        choices=constants.DOCUMENTATION_CHOICES, default='sphinx',
+        choices=constants.DOCUMENTATION_CHOICES, default='auto',
         help_text=_('Type of documentation you are building. <a href="http://'
                     'sphinx-doc.org/builders.html#sphinx.builders.html.'
                     'DirectoryHTMLBuilder">More info</a>.'))
@@ -190,17 +144,18 @@ class Project(models.Model):
         help_text=_("Give the virtual environment access to the global "
                     "site-packages dir."),
         default=False
-        )
+    )
     django_packages_url = models.CharField(_('Django Packages URL'),
                                            max_length=255, blank=True)
     privacy_level = models.CharField(
         _('Privacy Level'), max_length=20, choices=constants.PRIVACY_CHOICES,
-        default='public',
+        default=getattr(settings, 'DEFAULT_PRIVACY_LEVEL', 'public'),
         help_text=_("(Beta) Level of privacy that you want on the repository. "
                     "Protected means public but not in listings."))
     version_privacy_level = models.CharField(
         _('Version Privacy Level'), max_length=20,
-        choices=constants.PRIVACY_CHOICES, default='public',
+        choices=constants.PRIVACY_CHOICES, default=getattr(
+            settings, 'DEFAULT_PRIVACY_LEVEL', 'public'),
         help_text=_("(Beta) Default level of privacy you want on built "
                     "versions of documentation."))
 
@@ -210,11 +165,16 @@ class Project(models.Model):
         symmetrical=False, through=ProjectRelationship)
 
     # Language bits
-    language = models.CharField('Language', max_length=20, default='en',
-                                help_text="The language the project "
-                                "documentation is rendered in. "
-                                "Note: this affects your project's URL.",
+    language = models.CharField(_('Language'), max_length=20, default='en',
+                                help_text=_("The language the project "
+                                            "documentation is rendered in. "
+                                            "Note: this affects your project's URL."),
                                 choices=constants.LANGUAGES)
+
+    programming_language = models.CharField(_('Programming Language'), max_length=20, default='words',
+                                            help_text=_(
+                                                "The primary programming language the project is written in."),
+                                            choices=constants.PROGRAMMING_LANGUAGES, blank=True)
     # A subproject pointed at it's main language, so it can be tracked
     main_language_project = models.ForeignKey('self',
                                               related_name='translations',
@@ -248,6 +208,7 @@ class Project(models.Model):
 
     tags = TaggableManager(blank=True)
     objects = ProjectManager()
+    all_objects = models.Manager()
 
     class Meta:
         ordering = ('slug',)
@@ -267,44 +228,63 @@ class Project(models.Model):
     @property
     def subdomain(self):
         prod_domain = getattr(settings, 'PRODUCTION_DOMAIN')
-        if self.canonical_domain:
-            return self.canonical_domain
-        else:
-            subdomain_slug = self.slug.replace('_', '-')
-            return "%s.%s" % (subdomain_slug, prod_domain)
+        # if self.canonical_domain:
+        #     return self.canonical_domain
+        # else:
+        subdomain_slug = self.slug.replace('_', '-')
+        return "%s.%s" % (subdomain_slug, prod_domain)
 
     def sync_supported_versions(self):
         supported = self.supported_versions(flat=True)
         if supported:
-            self.versions.filter(verbose_name__in=supported).update(supported=True)
-            self.versions.exclude(verbose_name__in=supported).update(supported=False)
+            self.versions.filter(
+                verbose_name__in=supported).update(supported=True)
+            self.versions.exclude(
+                verbose_name__in=supported).update(supported=False)
             self.versions.filter(verbose_name='latest').update(supported=True)
 
     def save(self, *args, **kwargs):
+        first_save = self.pk is None
         if not self.slug:
             # Subdomains can't have underscores in them.
-            self.slug = slugify(self.name).replace('_','-')
+            self.slug = slugify(self.name).replace('_', '-')
             if self.slug == '':
                 raise Exception(_("Model must have slug"))
-        obj = super(Project, self).save(*args, **kwargs)
+        super(Project, self).save(*args, **kwargs)
         for owner in self.users.all():
             assign('view_project', owner, self)
+        try:
+            if self.default_branch:
+                latest = self.versions.get(slug='latest')
+                if latest.identifier != self.default_branch:
+                    latest.identifier = self.default_branch
+                    latest.save()
+        except Exception:
+            log.error('Failed to update latest identifier', exc_info=True)
 
         # Add exceptions here for safety
         try:
             self.sync_supported_versions()
-        except Exception, e:
+        except Exception:
             log.error('failed to sync supported versions', exc_info=True)
         try:
-            symlink(project=self.slug)
-        except Exception, e:
+            if not first_save:
+                symlink(project=self.slug)
+        except Exception:
             log.error('failed to symlink project', exc_info=True)
         try:
-            #update_static_metadata(project_pk=self.pk)
-            pass
+            update_static_metadata(project_pk=self.pk)
         except Exception:
             log.error('failed to update static metadata', exc_info=True)
-        return obj
+        try:
+            branch = self.default_branch or self.vcs_repo().fallback_branch
+            if not self.versions.filter(slug='latest').exists():
+                self.versions.create(
+                    slug='latest', verbose_name='latest', machine=True, type='branch', active=True, identifier=branch)
+            # if not self.versions.filter(slug='stable').exists():
+            #     self.versions.create(slug='stable', verbose_name='stable', type='branch', active=True, identifier=branch)
+        except Exception:
+            log.error('Error creating default branches', exc_info=True)
 
     def get_absolute_url(self):
         return reverse('projects_detail', args=[self.slug])
@@ -371,81 +351,44 @@ class Project(models.Model):
             'project_slug': self.slug,
         })
 
-    def get_pdf_url(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_URL, 'pdf', self.slug, version_slug,
-                            '%s.pdf' % self.slug)
+    def get_production_media_path(self, type, version_slug, include_file=True):
+        """
+        Get file path for media files in production.
+        This is used to see if these files exist so we can offer them for download.
+        """
+        if getattr(settings, 'DEFAULT_PRIVACY_LEVEL', 'public') == 'public':
+            path = os.path.join(
+                settings.MEDIA_ROOT, type, self.slug, version_slug)
+        else:
+            path = os.path.join(
+                settings.PRODUCTION_MEDIA_ARTIFACTS, type, self.slug, version_slug)
+        if include_file:
+            path = os.path.join(
+                path, '%s.%s' % (self.slug, type.replace('htmlzip', 'zip')))
         return path
 
-    def get_pdf_path(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_ROOT, 'pdf', self.slug,
-                            version_slug, '%s.pdf' % self.slug)
+    def get_production_media_url(self, type, version_slug, full_path=True):
+        """
+        Get the URL for downloading a specific media file.
+        """
+        path = reverse('project_download_media', kwargs={
+            'project_slug': self.slug,
+            'type': type,
+            'version_slug': version_slug,
+        })
+        if full_path:
+            path = '//%s%s' % (settings.PRODUCTION_DOMAIN, path)
         return path
 
-    def get_epub_url(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_URL, 'epub', self.slug,
-                            version_slug, '%s.epub' % self.slug)
-        return path
-
-    def get_epub_path(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_ROOT, 'epub', self.slug,
-                            version_slug, '%s.epub' % self.slug)
-        return path
-
-    def get_manpage_url(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_URL, 'man', self.slug, version_slug,
-                            '%s.1' % self.slug)
-        return path
-
-    def get_manpage_path(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_ROOT, 'man', self.slug,
-                            version_slug, '%s.1' % self.slug)
-        return path
-
-    def get_htmlzip_url(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_URL, 'htmlzip', self.slug,
-                            version_slug, '%s.zip' % self.slug)
-        return path
-
-    def get_htmlzip_path(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_ROOT, 'htmlzip', self.slug,
-                            version_slug, '%s.zip' % self.slug)
-        return path
-
-    def get_dash_url(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_URL, 'dash', self.slug,
-                            version_slug, '%s.tgz' % self.doc_name)
-        return path
-
-    def get_dash_path(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_ROOT, 'dash', self.slug,
-                            version_slug, '%s.tgz' % self.doc_name)
-        return path
-
-    def get_dash_feed_path(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_ROOT, 'dash', self.slug,
-                            version_slug, '%s.xml' % self.doc_name)
-        return path
-
-    def get_dash_feed_url(self, version_slug='latest'):
-        path = os.path.join(settings.MEDIA_URL,
-                            'dash',
-                            self.slug,
-                            version_slug,
-                            '%s.xml' % self.doc_name)
-        return path
-
-    def get_downloads(self, version_slug='latest'):
+    def get_downloads(self):
         downloads = {}
-        downloads['htmlzip'] = self.get_htmlzip_url()
-        downloads['epub'] = self.get_epub_url()
-        downloads['pdf'] = self.get_pdf_url()
-        downloads['manpage'] = self.get_manpage_url()
-        downloads['dash'] = self.get_dash_url()
+        downloads['htmlzip'] = self.get_production_media_url(
+            'htmlzip', self.get_default_version())
+        downloads['epub'] = self.get_production_media_url(
+            'htmlzip', self.get_default_version())
+        downloads['pdf'] = self.get_production_media_url(
+            'htmlzip', self.get_default_version())
         return downloads
-
-    @property
-    def doc_name(self):
-        return self.slug.replace('_', '-')
 
     @property
     def canonical_domain(self):
@@ -472,8 +415,8 @@ class Project(models.Model):
             return self.repo.replace('http://github.com', 'https://github.com')
         return self.repo
 
-    #Doc PATH:
-    #MEDIA_ROOT/slug/checkouts/version/<repo>
+    # Doc PATH:
+    # MEDIA_ROOT/slug/checkouts/version/<repo>
 
     @property
     def doc_path(self):
@@ -524,7 +467,6 @@ class Project(models.Model):
         return os.path.join(self.venv_path(version), 'bin', bin)
 
 
-
     def artifact_path(self, type, version='latest'):
         """
         The path to the build html docs in the project.
@@ -565,7 +507,10 @@ class Project(models.Model):
         """
         The path to the build json docs in the project.
         """
-        return os.path.join(self.conf_dir(version), "_build", "json")
+        if 'sphinx' in self.documentation_type:
+            return os.path.join(self.conf_dir(version), "_build", "json")
+        elif 'mkdocs' in self.documentation_type:
+            return os.path.join(self.checkout_path(version), "_build", "json")
 
     def full_singlehtml_path(self, version='latest'):
         """
@@ -607,31 +552,22 @@ class Project(models.Model):
         return self.aliases.exists()
 
     def has_pdf(self, version_slug='latest'):
-        return os.path.exists(self.get_pdf_path(version_slug))
-
-    def has_manpage(self, version_slug='latest'):
-        return os.path.exists(self.get_manpage_path(version_slug))
+        return os.path.exists(self.get_production_media_path(type='pdf', version_slug=version_slug))
 
     def has_epub(self, version_slug='latest'):
-        return os.path.exists(self.get_epub_path(version_slug))
-
-    def has_dash(self, version_slug='latest'):
-        return os.path.exists(self.get_dash_path(version_slug))
+        return os.path.exists(self.get_production_media_path(type='epub', version_slug=version_slug))
 
     def has_htmlzip(self, version_slug='latest'):
-        return os.path.exists(self.get_htmlzip_path(version_slug))
+        return os.path.exists(self.get_production_media_path(type='htmlzip', version_slug=version_slug))
 
     def vcs_repo(self, version='latest'):
-        #if hasattr(self, '_vcs_repo'):
-            #return self._vcs_repo
         backend = backend_cls.get(self.repo_type)
         if not backend:
             repo = None
         else:
-            proj = VCSProject(self.name, self.default_branch,
-                              self.checkout_path(version), self.clean_repo)
+            proj = VCSProject(
+                self.name, self.default_branch, self.checkout_path(version), self.clean_repo)
             repo = backend(proj, version)
-        #self._vcs_repo = repo
         return repo
 
     @property
@@ -666,11 +602,15 @@ class Project(models.Model):
         return sort_version_aware(ret)
 
     def active_versions(self):
-        return (self.versions.filter(built=True, active=True) |
-                self.versions.filter(active=True, uploaded=True))
+        from builds.models import Version
+        versions = Version.objects.public(project=self, only_active=True)
+        return (versions.filter(built=True, active=True) |
+                versions.filter(active=True, uploaded=True))
 
     def ordered_active_versions(self):
-        return sort_version_aware(self.versions.filter(active=True))
+        from builds.models import Version
+        versions = Version.objects.public(project=self, only_active=True)
+        return sort_version_aware(versions)
 
     def all_active_versions(self):
         """A temporary workaround for active_versions filtering out things
@@ -687,7 +627,7 @@ class Project(models.Model):
         if not self.num_major or not self.num_minor or not self.num_point:
             return None
         versions = []
-        for ver in self.versions.all():
+        for ver in self.versions.public(only_active=False):
             try:
                 versions.append(BetterVersion(ver.verbose_name))
             except UnsupportedVersionError:
@@ -719,6 +659,7 @@ class Project(models.Model):
             self.versions.filter(identifier='remotes/origin/%s' % branch) |
             self.versions.filter(identifier='origin/%s' % branch)
         )
+
     def get_default_version(self):
         """
         Get the default version (slug).
@@ -756,6 +697,7 @@ class Project(models.Model):
         ProjectRelationship.objects.filter(parent=self, child=child).delete()
         return
 
+
 class ImportedFile(models.Model):
     project = models.ForeignKey('Project', verbose_name=_('Project'),
                                 related_name='imported_files')
@@ -765,6 +707,7 @@ class ImportedFile(models.Model):
     slug = models.SlugField(_('Slug'))
     path = models.CharField(_('Path'), max_length=255)
     md5 = models.CharField(_('MD5 checksum'), max_length=255)
+    commit = models.CharField(_('Commit'), max_length=255)
 
     @models.permalink
     def get_absolute_url(self):
@@ -778,6 +721,7 @@ class ImportedFile(models.Model):
 class Notification(models.Model):
     project = models.ForeignKey(Project,
                                 related_name='%(class)s_notifications')
+    objects = RelatedProjectManager()
 
     class Meta:
         abstract = True

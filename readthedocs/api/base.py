@@ -13,12 +13,12 @@ from tastypie.http import HttpCreated, HttpApplicationError
 from tastypie.utils import dict_strip_unicode_keys, trailing_slash
 
 from builds.models import Build, Version
+from core.utils import trigger_build
 from projects.models import Project, ImportedFile
 from projects.utils import highest_version, mkversion, slugify_uniquely
-from projects import tasks
 from djangome import views as djangome
 
-from .utils import SearchMixin, PostAuthentication 
+from .utils import SearchMixin, PostAuthentication
 
 log = logging.getLogger(__name__)
 
@@ -29,17 +29,17 @@ class ProjectResource(ModelResource, SearchMixin):
     class Meta:
         include_absolute_url = True
         allowed_methods = ['get', 'post', 'put']
-        queryset = Project.objects.public()
+        queryset = Project.objects.api()
         authentication = PostAuthentication()
         authorization = DjangoAuthorization()
-        excludes = ['path', 'featured']
+        excludes = ['path', 'featured', 'programming_language']
         filtering = {
             "users": ALL_WITH_RELATIONS,
             "slug": ALL_WITH_RELATIONS,
         }
 
     def get_object_list(self, request):
-        self._meta.queryset = Project.objects.public(user=request.user)
+        self._meta.queryset = Project.objects.api(user=request.user)
         return super(ProjectResource, self).get_object_list(request)
 
     def dehydrate(self, bundle):
@@ -67,8 +67,6 @@ class ProjectResource(ModelResource, SearchMixin):
         self.is_valid(bundle)
         updated_bundle = self.obj_create(bundle, request=request)
         return HttpCreated(location=self.get_resource_uri(updated_bundle))
-
-
 
     def sync_versions(self, request, **kwargs):
         """
@@ -98,7 +96,6 @@ class ProjectResource(ModelResource, SearchMixin):
             )
         return self.create_response(request, deleted_versions)
 
-
     def override_urls(self):
         return [
             url(r"^(?P<resource_name>%s)/schema/$" % self._meta.resource_name,
@@ -121,7 +118,7 @@ class VersionResource(ModelResource):
     class Meta:
         allowed_methods = ['get', 'put', 'post']
         always_return_data = True
-        queryset = Version.objects.public()
+        queryset = Version.objects.api()
         authentication = PostAuthentication()
         authorization = DjangoAuthorization()
         filtering = {
@@ -138,8 +135,7 @@ class VersionResource(ModelResource):
     #     return bundle
 
     def get_object_list(self, request):
-        self._meta.queryset = Version.objects.public(user=request.user,
-                                                     only_active=False)
+        self._meta.queryset = Version.objects.api(user=request.user, only_active=False)
         return super(VersionResource, self).get_object_list(request)
 
     def version_compare(self, request, **kwargs):
@@ -173,7 +169,7 @@ class VersionResource(ModelResource):
         project = get_object_or_404(Project, slug=kwargs['project_slug'])
         version = kwargs.get('version_slug', 'latest')
         version_obj = project.versions.get(slug=version)
-        tasks.update_docs.delay(pk=project.pk, version_pk=version_obj.pk)
+        trigger_build(project=project, version=version_obj)
         return self.create_response(request, {'building': True})
 
     def override_urls(self):
@@ -211,7 +207,7 @@ class BuildResource(ModelResource):
         always_return_data = True
         include_absolute_url = True
         allowed_methods = ['get', 'post', 'put']
-        queryset = Build.objects.all()
+        queryset = Build.objects.api()
         authentication = PostAuthentication()
         authorization = DjangoAuthorization()
         filtering = {
@@ -220,6 +216,10 @@ class BuildResource(ModelResource):
             "type": ALL_WITH_RELATIONS,
             "state": ALL_WITH_RELATIONS,
         }
+
+    def get_object_list(self, request):
+        self._meta.queryset = Build.objects.api(user=request.user)
+        return super(BuildResource, self).get_object_list(request)
 
     def override_urls(self):
         return [
@@ -279,6 +279,7 @@ class FileResource(ModelResource, SearchMixin):
 
 
 class UserResource(ModelResource):
+
     class Meta:
         allowed_methods = ['get']
         queryset = User.objects.all()

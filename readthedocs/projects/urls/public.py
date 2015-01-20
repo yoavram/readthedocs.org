@@ -1,6 +1,7 @@
 from django.conf.urls import patterns, url
 
-from projects.views.public import ProjectIndex
+from projects.views.public import ProjectIndex, ProjectDetailView
+
 
 urlpatterns = patterns(
     # base view, flake8 complains if it is on the previous line.
@@ -26,16 +27,33 @@ urlpatterns = patterns(
         name='projects_tag_detail'),
 
     url(r'^(?P<project_slug>[-\w]+)/$',
-        'projects.views.public.project_detail',
+        ProjectDetailView.as_view(),
         name='projects_detail'),
 
     url(r'^(?P<project_slug>[-\w]+)/downloads/$',
         'projects.views.public.project_downloads',
         name='project_downloads'),
 
+    url(r'^(?P<project_slug>[-\w]+)/downloads/(?P<type>[-\w]+)/(?P<version_slug>[-\w.]+)/$',
+        'projects.views.public.project_download_media',
+        name='project_download_media'),
+
     url(r'^(?P<project_slug>[-\w]+)/badge/$',
         'projects.views.public.project_badge',
         name='project_badge'),
+
+    url(r'^(?P<project_slug>[-\w]+)/versions/$',
+        'projects.views.public.project_versions',
+        name='project_version_list'),
+
+    url(r'^(?P<project_slug>[-\w]+)/search/$',
+        'projects.views.public.elastic_project_search',
+        name='elastic_project_search'),
+
+    url(r'^(?P<project_slug>[-\w]+)/autocomplete/file/$',
+        'projects.views.public.file_autocomplete',
+        name='file_autocomplete'),
+
 
     url(r'^(?P<username>\w+)/$',
         'projects.views.public.project_index',

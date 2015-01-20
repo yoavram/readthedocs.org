@@ -3,6 +3,8 @@ from django.conf.urls import url, patterns
 from projects.constants import LANGUAGES_REGEX
 from urls import urlpatterns as main_patterns
 
+handler500 = 'core.views.server_error'
+handler404 = 'core.views.server_error_404'
 
 urlpatterns = patterns(
     '',  # base view, flake8 complains if it is on the previous line.
@@ -40,7 +42,7 @@ urlpatterns = patterns(
         'core.views.redirect_version_slug',
         name='version_subdomain_handler'),
 
-    url(r'^$', 'core.views.redirect_project_slug'),
+    url(r'^$', 'core.views.redirect_project_slug', name='homepage'),
 )
 
 urlpatterns += main_patterns

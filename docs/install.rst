@@ -3,7 +3,8 @@
 Installation
 =============
 
-Installing RTD is pretty simple. Here is a step by step plan on how to do it.
+Here is a step by step plan on how to install Read the Docs. 
+It will get you to a point of having a local running instance.
 
 First, obtain Python_ and virtualenv_ if you do not already have them. Using a
 virtual environment will make the installation easier, and will help to avoid
@@ -52,6 +53,20 @@ Next, install the dependencies using ``pip`` (included with virtualenv_)::
         LDFLAGS=-L/usr/local/opt/libxml2/lib \
         pip install -r pip_requirements.txt
 
+.. note::
+
+    Linux users may find they need to install a few additional packages
+    in order to successfully execute ``pip-install -r pip_requirements.txt``.
+    For example, a clean install of Ubuntu 14.04 LTS will require the
+    following packages::
+
+        sudo apt-get install build-essential
+        sudo apt-get install python-dev
+        sudo apt-get install libxml2-dev libxslt1-dev zlib1g-dev
+
+    Users of other Linux distributions may need to install the equivalent
+    packages, depending on their system configuration.
+
 .. _Homebrew: http://brew.sh/
 
 This may take a while, so go grab a beverage. When it's done, build your
@@ -88,48 +103,6 @@ with the name of any added project::
 
    ./manage.py update_repos pip
 
-
-Solr (Search) Setup
--------------------
-
-Apache Solr is used to index and search documents.
-This is an optional requirement,
-and only necessary if you want to develop or use search.
-
-Additional python requirements necessary to use Solr::
-
-    pip install pysolr
-    pip install pyquery
-
-Fetch and unpack Solr::
-
-    curl -O http://archive.apache.org/dist/lucene/solr/3.5.0/apache-solr-3.5.0.tgz
-    tar xvzf apache-solr-3.5.0.tgz && SOLR_PATH=`pwd`/apache-solr-3.5.0/example
-
-Generate the schema.xml file::
-
-    ./manage.py build_solr_schema > $SOLR_PATH/solr/conf/schema.xml
-
-Start the server::
-
-    cd $SOLR_PATH && java -jar start.jar
-
-Index the data::
-
-    ./manage.py build_files # creates database objects referencing project files
-    ./manage.py update_index
-
-.. note::
-
-    For production environments, you'll want to run Solr in a more permanent
-    servelet container, such as Tomcat or Jetty. Ubuntu distributions include
-    prepackaged Solr installations. Try ``aptitude install solr-tomcat`` or
-    ``aptitude install solr-jetty.``
-
-    See /etc/[solr|tomcat6|jetty] for configuration options.  The ``schema.xml``
-    file must be replaced with the version built by django-haystack.
-
-
 What's available
 ----------------
 
@@ -159,35 +132,3 @@ docs you've already built.  Simply provide us with the clone url to your repo,
 we'll pull your code, extract your docs, and build them!  We make available
 a post-commit webhook that can be configured to update the docs on our site
 whenever you commit to your repo, effectively letting you 'set it and forget it'.
-
-
-Installation with Vagrant
--------------------------
-
-It is also possible to run RTD using Vagrant_, using Vagrant v1.1+ and the
-`Salt plugin`_ for Vagrant_, by running the following commands::
-
-    vagrant plugin install vagrant-salt
-    vagrant up
-
-The Vagrant_ virtual machine will take a while to create and provision, and
-will leave a virtual machine running an instance of RTD with the following
-settings:
-
-:URL: http://localhost:8000
-:Username: docs
-:Password: docs
-
-.. _Vagrant: http://www.vagrantup.com/
-.. _Salt plugin: https://github.com/saltstack/salty-vagrant
-
-.. note::
-
-    The hostname `localhost` is used here, though it is possible to test RTD
-    and subdomains by adding entries in `/etc/hosts` for `readthedocs.org` and
-    your subdomains on readthedocs.org, pointing to `127.0.0.1` on the host
-    system. The site will be available at http://readthedocs.org:8000 with the
-    proper records set up.
-
-The repository is shared with the host file system, so edits can be made
-outside the virtual environment.
