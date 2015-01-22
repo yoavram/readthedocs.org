@@ -1,3 +1,4 @@
+import os
 import os.path
 import shutil
 import uuid
@@ -13,44 +14,60 @@ from doc_builder.environments import (DockerEnvironment, DockerBuildCommand,
 from rtd_tests.utils import make_test_git
 from rtd_tests.base import RTDTestCase
 
+from doc_builder.loader import loading
+from doc_builder.state import CoreState, SettingsState, VCSState, BuildState
+from filesystem import FilesystemProject, SphinxVersion
 
-class TestBuilding(RTDTestCase):
-    """These tests run the build functions directly. They don't use celery"""
-    fixtures = ['eric.json']
+
+class TestState(TestCase):
 
     def setUp(self):
-        repo = make_test_git()
-        self.repo = repo
-        super(TestBuilding, self).setUp()
-        self.eric = User.objects.get(username='eric')
-        self.project = Project.objects.create(
-            name="Test Project",
-            repo_type="git",
-            #Our top-level checkout
-            repo=repo,
+
+        root = '/Users/eric/checkouts/django-kong/'
+
+        project_obj = FilesystemProject(
+            root=root,
+            slug='kong',
+            checkout_path=root,
+            artifact_path=root + 'rtd-artifact',
+            env_path=root + 'rtd-env',
         )
-        self.project.users.add(self.eric)
 
-    def tearDown(self):
-        shutil.rmtree(self.repo)
-        super(TestBuilding, self).tearDown()
+        version_obj = SphinxVersion(project=project_obj, slug='latest')
+
+        vcs = VCSState(repo='https://github.com/username/repo.git', branch='master')
+
+        cstate = CoreState(
+            language='en',
+            downloads=[],
+            versions=[],
+            name=None,
+            version='latest',
+            project='Kong',
+            analytics_code=None,
+            canonical_url=None,
+            single_version=None,
+            virtualenv=True,
+            interpreter='python2',
+            system_packages=False,
+            documentation_type='sphinx',
+            requirements_file='',
+            config_path='',
+        )
+
+        sstate = SettingsState()
+        self.state = BuildState(fs=version_obj, vcs=vcs, core=cstate, settings=sstate)
 
 
-class TestDockerEnvironment(TestCase):
+class TestDockerEnvironment(TestState):
     '''Test docker build environment'''
 
     fixtures = ['test_data']
 
-    def setUp(self):
-        self.project = Project.objects.get(slug='pip')
-        self.version = Version(slug='foo', verbose_name='foobar')
-        self.project.versions.add(self.version)
-
     def test_container_id(self):
         '''Test docker build command'''
-        docker = DockerEnvironment(self.version)
-        self.assertEqual(docker.container_id(),
-                         'version-foobar-of-pip-20')
+        docker = DockerEnvironment(self.state)
+        self.assertEqual(docker.container_id(), 'latest-of-kong')
 
 
 class TestBuildCommand(TestCase):

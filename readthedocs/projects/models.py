@@ -583,11 +583,17 @@ class Project(models.Model):
     def repo_lock(self, version, timeout=5, polling_interval=5):
         return Lock(self, version, timeout, polling_interval)
 
-    def get_latest_build(self):
-        try:
-            return self.builds.filter(type='html')[0]
-        except IndexError:
-            return None
+    def get_latest_build(self, finished=True):
+        """
+        Get latest build for project
+
+        finished
+            Return only builds that are in a finished state
+        """
+        kwargs = {'type': 'html'}
+        if finished:
+            kwargs['state'] = 'finished'
+        return self.builds.filter(**kwargs).first()
 
     def api_versions(self):
         ret = []

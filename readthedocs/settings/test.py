@@ -8,7 +8,9 @@ SLUMBER_API_HOST = 'http://localhost:8000'
 # A bunch of our tests check this value in a returned URL/Domain
 PRODUCTION_DOMAIN = 'readthedocs.org'
 
-try:
-    from local_settings import *  # noqa
-except ImportError:
-    pass
+# Standard settings shouldn't override
+
+# try:
+#     from local_settings import *  # noqa
+# except ImportError:
+#     pass

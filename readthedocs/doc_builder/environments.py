@@ -27,8 +27,8 @@ class EnvironmentBase(object):
     :param version: Project version that is being built
     '''
 
-    def __init__(self, version):
-        self.version = version
+    def __init__(self, state):
+        self.state = state
 
     def response(self, cmd, step='doc_builder'):
         '''Render a response for reporting to the build command page
@@ -75,7 +75,7 @@ class DockerEnvironment(EnvironmentBase):
         '''
         Container ID used in creating and destroying docker images
         '''
-        return slugify(self.state.core.version)
+        return slugify(u"%s of %s" % (self.state.core.version, self.state.core.project))
 
     def build(self):
         '''
@@ -110,12 +110,12 @@ class DockerEnvironment(EnvironmentBase):
             mounts=[(self.state.fs.doc_path,
                      ('/home/docs/checkouts/readthedocs.org/'
                       'user_builds/{project}'
-                      .format(project=self.version.project.slug)))]
+                      .format(project=self.state.core.project)))]
         )
         with cmd:
             try:
                 renderer = JSONRenderer()
-                version_data = VersionFullSerializer(self.version).data
+                version_data = VersionFullSerializer(self.state).data
                 cmd.run(cmd_input=renderer.render(version_data))
             except Exception as e:
                 log.error('Passing data to Docker failed: %s', str(e))
