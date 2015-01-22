@@ -19,8 +19,12 @@ class FilesystemProject(object):
     def __init__(self, root, slug, **kwargs):
         self.root = root
         self.slug = slug
+        self.doc_path = os.path.join(self.root, self.slug)
         for kwarg, val in kwargs.items():
             setattr(self, kwarg, val)
+
+    def get_artifact_path(self, version, type):
+        return os.path.join(self.doc_path, "artifacts", version, type)
 
 
 class ReadTheDocsProject(FilesystemProject):
@@ -28,7 +32,6 @@ class ReadTheDocsProject(FilesystemProject):
     def __init__(self, root, slug, **kwargs):
         self.root = root
         self.slug = slug
-        self.doc_path = os.path.join(self.root, self.slug)
         self.checkout_path = os.path.join(self.doc_path, 'checkouts')
         self.env_path = os.path.join(self.doc_path, 'envs')
         self.artifact_path = os.path.join(self.doc_path, 'artifacts')
@@ -124,7 +127,7 @@ class SphinxVersion(Version):
             # 0x1090cded0>,)
             raise ProjectImportError(
                 u"Conf File Missing. Please make sure you have a conf.py in your project."
-                )
+            )
 
     @property
     def conf_dir(self):

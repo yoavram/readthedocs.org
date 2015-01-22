@@ -2,15 +2,12 @@ import re
 import logging
 import yaml
 
-from projects.forms import ImportProjectForm
-from projects.tasks import LOG_TEMPLATE
-
 log = logging.getLogger(__name__)
 
 
 class CoreState(object):
     language = 'en'
-    downloads =[]
+    downloads = []
     versions = []
     name = None
     project = None
@@ -28,7 +25,9 @@ class CoreState(object):
     config_path = ''
 
     def __init__(self, **kwargs):
-        pass
+        for kwarg, val in kwargs.items():
+            setattr(self, kwarg, val)
+
 
 class SettingsState(object):
     API_HOST = 'https://readthedocs.org'
@@ -40,6 +39,7 @@ class SettingsState(object):
     def __init__(self, **kwargs):
         for kwarg, val in kwargs.items():
             setattr(self, kwarg, val)
+
 
 class VCSState(object):
 
@@ -54,7 +54,6 @@ class VCSState(object):
         re.compile('bitbucket.org/(.+)/(.+)'),
         re.compile('bitbucket.org:(.+)/(.+)\.git'),
     ]
-
 
     def __init__(self, repo, branch):
         self.repo = repo
@@ -76,7 +75,9 @@ class VCSState(object):
                 return match.groups()
         return (None, None)
 
+
 class BuildState(object):
+
     """
     An object that maintains the state for the build happening on Read the Docs.
 
@@ -100,9 +101,9 @@ class BuildState(object):
     #         rtd_yaml = open(path)
     #         yaml_obj = yaml.load(rtd_yaml)
     #         for key in yaml_obj.keys():
-    #             # Treat the defined fields on the Import form as
-    #             # the canonical list of allowed user editable fields.
-    #             # This is in essense just another UI for that form.
+    # Treat the defined fields on the Import form as
+    # the canonical list of allowed user editable fields.
+    # This is in essense just another UI for that form.
     #             if key not in ImportProjectForm._meta.fields:
     #                 del yaml_obj[key]
     #         log.debug("Updated from JSON.")

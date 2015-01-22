@@ -13,5 +13,5 @@
     cd readthedocs
     rm -rf rtd_tests/builds/
 
-    coverage run -m pytest $*
+    python -m pytest $*
 )

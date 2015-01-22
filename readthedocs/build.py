@@ -1,10 +1,10 @@
 import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings.sqlite'
-from doc_builder import loading
+from doc_builder.loader import loading
 from doc_builder.state import CoreState, SettingsState, VCSState, BuildState
 from filesystem import FilesystemProject, SphinxVersion
 
-root = '/Users/eric/checkouts/setuptools/'
+root = '/Users/eric/checkouts/django-kong/'
 
 project_obj = FilesystemProject(
     root=root,
@@ -23,7 +23,7 @@ cstate = CoreState(
     downloads=[],
     versions=[],
     name=None,
-    version=None,
+    version='latest',
     analytics_code=None,
     canonical_url=None,
     single_version=None,
@@ -41,6 +41,7 @@ state = BuildState(fs=version_obj, vcs=vcs, core=cstate, settings=sstate)
 
 BuilderClass = loading.get('sphinx')
 builder = BuilderClass(state=state)
+
 print builder.setup_environment()
 print builder.append_conf()
 print builder.build()

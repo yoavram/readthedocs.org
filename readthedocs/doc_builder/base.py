@@ -5,6 +5,8 @@ import shutil
 
 from projects.utils import run
 
+from projects.constants import LOG_TEMPLATE
+
 log = logging.getLogger(__name__)
 
 
@@ -34,7 +36,7 @@ class BaseBuilder(object):
 
     def __init__(self, state):
         self.state = state
-        self.target = self.state.fs.artifact_path(type=self.type)
+        self.target = self.state.fs.project.get_artifact_path(version=self.state.core.version, type=self.type)
 
     def setup_environment(self):
         """

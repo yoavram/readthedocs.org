@@ -9,6 +9,8 @@ from django.utils.translation import ugettext_lazy as _, ugettext
 from guardian.shortcuts import assign
 from taggit.managers import TaggableManager
 
+from filesystem import ReadTheDocsProject, SphinxVersion
+from doc_builder import state as builder_state
 from privacy.loader import VersionManager, RelatedProjectManager
 from projects.models import Project
 from projects import constants
@@ -222,6 +224,51 @@ class Version(models.Model):
             docroot=docroot,
             path=filename,
             source_suffix=source_suffix,
+        )
+
+    @property
+    def vcs_state(self):
+        return builder_state.VCSState(
+            repo=self.project.repo,
+            branch=self.identifier,
+        )
+
+    @property
+    def fs_state(self):
+        project_obj = ReadTheDocsProject(
+            root=settings.DOCROOT,
+            slug=self.project.slug,
+        )
+        return SphinxVersion(project=project_obj, slug=self.slug)
+
+    @property
+    def core_state(self):
+        return builder_state.CoreState(
+            language=self.project.language,
+            downloads=[],
+            versions=[],
+            name=self.project.slug,
+            project=self.project.slug,
+            version=self.slug,
+            analytics_code=self.project.analytics_code,
+            canonical_url=self.project.clean_canonical_url,
+            single_version=self.project.single_version,
+            virtualenv=True,
+            interpreter=self.project.python_interpreter,
+            system_packages=self.project.use_system_packages,
+            documentation_type=self.project.documentation_type,
+            requirements_file=self.project.requirements_file,
+            config_path='',
+        )
+
+    @property
+    def settings_state(self):
+        return builder_state.SettingsState(
+            API_HOST=settings.SLUMBER_API_HOST,
+            MEDIA_URL=settings.MEDIA_URL,
+            PRODUCTION_DOMAIN=settings.PRODUCTION_DOMAIN,
+            TEMPLATE_DIR='%s/readthedocs/templates/sphinx' % settings.SITE_ROOT,
+            STATIC_DIR='%s/readthedocs/templates/sphinx/_static' % settings.SITE_ROOT,
         )
 
 

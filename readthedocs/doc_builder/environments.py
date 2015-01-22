@@ -75,7 +75,7 @@ class DockerEnvironment(EnvironmentBase):
         '''
         Container ID used in creating and destroying docker images
         '''
-        return slugify(unicode(self.version))
+        return slugify(self.state.core.version)
 
     def build(self):
         '''
@@ -107,7 +107,7 @@ class DockerEnvironment(EnvironmentBase):
              '--settings=settings.docker'],
             name=self.container_id(),
             environment=self.env_settings(),
-            mounts=[(self.version.project.doc_path,
+            mounts=[(self.state.fs.doc_path,
                      ('/home/docs/checkouts/readthedocs.org/'
                       'user_builds/{project}'
                       .format(project=self.version.project.slug)))]

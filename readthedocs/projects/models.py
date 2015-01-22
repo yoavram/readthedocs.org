@@ -218,10 +218,6 @@ class Project(models.Model):
             ('view_project', _('View Project')),
         )
 
-    def __getattribute__(self, name):
-        print "project: %s" % name
-        return object.__getattribute__(self, name)
-
     def __unicode__(self):
         return self.name
 

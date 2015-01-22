@@ -24,30 +24,31 @@ PDF_RE = re.compile('Output written on (.*?)')
 
 
 def _json(obj):
-  """Represent instance of a class as JSON.
-  Arguments:
-  obj -- any object
-  Return:
-  String that reprent JSON-encoded object.
-  """
-  def serialize(obj):
-    """Recursively walk object's hierarchy."""
-    if isinstance(obj, (bool, int, long, float, basestring)):
-      return obj
-    elif isinstance(obj, dict):
-      obj = obj.copy()
-      for key in obj:
-        obj[key] = serialize(obj[key])
-      return obj
-    elif isinstance(obj, list):
-      return [serialize(item) for item in obj]
-    elif isinstance(obj, tuple):
-      return tuple(serialize([item for item in obj]))
-    elif hasattr(obj, '__dict__'):
-      return serialize(obj.__dict__)
-    else:
-      return repr(obj) # Don't know how to handle, convert to string
-  return json.dumps(serialize(obj))
+    """Represent instance of a class as JSON.
+    Arguments:
+    obj -- any object
+    Return:
+    String that reprent JSON-encoded object.
+    """
+    def serialize(obj):
+        """Recursively walk object's hierarchy."""
+        if isinstance(obj, (bool, int, long, float, basestring)):
+            return obj
+        elif isinstance(obj, dict):
+            obj = obj.copy()
+            for key in obj:
+                obj[key] = serialize(obj[key])
+            return obj
+        elif isinstance(obj, list):
+            return [serialize(item) for item in obj]
+        elif isinstance(obj, tuple):
+            return tuple(serialize([item for item in obj]))
+        elif hasattr(obj, '__dict__'):
+            return serialize(obj.__dict__)
+        else:
+            return repr(obj)  # Don't know how to handle, convert to string
+    return json.dumps(serialize(obj))
+
 
 class BaseSphinx(BaseBuilder):
 
@@ -85,8 +86,8 @@ class BaseSphinx(BaseBuilder):
         """
         docs_dir = self.docs_dir()
         conf_template = render_to_string('sphinx/conf.py.conf',
-                                         {'project': self.version.project,
-                                          'version': self.version,
+                                         {'project': self.state.core.project,
+                                          'version': self.state.core.version,
                                           'template_dir': TEMPLATE_DIR,
                                           })
         conf_file = os.path.join(docs_dir, 'conf.py')
@@ -98,12 +99,11 @@ class BaseSphinx(BaseBuilder):
 
         # Pull config data
         try:
-            conf_py_path = version_utils.get_conf_py_path(self.version)
+            self.state.fs.conf_file
         except ProjectImportError:
             self._write_config()
             self.create_index(extension='rst')
 
-        project = self.version.project
         # Open file for appending.
         outfile = codecs.open(self.state.fs.conf_file, encoding='utf-8', mode='a')
         outfile.write("\n")
@@ -121,12 +121,12 @@ class BaseSphinx(BaseBuilder):
             # 'conf_py_path': conf_py_path,
             # 'downloads': apiv2.version(self.version.pk).downloads.get()['downloads'],
             # 'api_host': getattr(settings, 'SLUMBER_API_HOST', 'https://readthedocs.org'),
-            # # GitHub
+            # GitHub
             # 'github_user': github_info[0],
             # 'github_repo': github_info[1],
             # 'github_version':  remote_version,
             # 'display_github': display_github,
-            # # BitBucket
+            # BitBucket
             # 'bitbucket_user': bitbucket_info[0],
             # 'bitbucket_repo': bitbucket_info[1],
             # 'bitbucket_version':  remote_version,
@@ -134,33 +134,16 @@ class BaseSphinx(BaseBuilder):
         })
 
         # Avoid hitting database and API if using Docker build environment
-        if getattr(settings, 'DONT_HIT_API', False):
-            rtd_ctx['versions'] = project.active_versions()
-            rtd_ctx['downloads'] = self.version.get_downloads(pretty=True)
-        else:
-            rtd_ctx['versions'] = project.api_versions()
-            rtd_ctx['downloads'] = (apiv2.version(self.version.pk)
-                                    .downloads.get()['downloads'])
+        # if getattr(settings, 'DONT_HIT_API', False):
+        #     rtd_ctx['versions'] = project.active_versions()
+        #     rtd_ctx['downloads'] = self.version.get_downloads(pretty=True)
+        # else:
+        #     rtd_ctx['versions'] = project.api_versions()
+        #     rtd_ctx['downloads'] = (apiv2.version(self.version.pk)
+        #                             .downloads.get()['downloads'])
 
         rtd_string = template_loader.get_template('doc_builder/conf.py.tmpl').render(rtd_ctx)
         outfile.write(rtd_string)
-
-    @restoring_chdir
-    def build(self, **kwargs):
-        self.clean()
-        project = self.version.project
-        os.chdir(project.conf_dir(self.version.slug))
-        force_str = " -E " if self._force else ""
-        build_command = "%s -T %s -b %s -D language=%s . %s " % (
-            project.venv_bin(version=self.version.slug,
-                             bin='sphinx-build'),
-            force_str,
-            self.sphinx_builder,
-            project.language,
-            self.sphinx_build_dir,
-        )
-        results = run(build_command, shell=True)
-        return results
 
 
 class HtmlBuilder(BaseSphinx):
@@ -193,7 +176,7 @@ class LocalMediaBuilder(BaseSphinx):
     @restoring_chdir
     def move(self, **kwargs):
         log.info("Creating zip file from %s" % self.old_artifact_path)
-        target_file = os.path.join(self.target, '%s.zip' % self.version.project.slug)
+        target_file = os.path.join(self.target, '%s.zip' % self.state.core.project)
         if not os.path.exists(self.target):
             os.makedirs(self.target)
         if os.path.exists(target_file):
@@ -207,8 +190,8 @@ class LocalMediaBuilder(BaseSphinx):
                 to_write = os.path.join(root, file)
                 archive.write(
                     filename=to_write,
-                    arcname=os.path.join("%s-%s" % (self.version.project.slug,
-                                                    self.version.slug),
+                    arcname=os.path.join("%s-%s" % (self.state.core.project,
+                                                    self.state.core.version),
                                          to_write)
                 )
         archive.close()
@@ -225,7 +208,7 @@ class EpubBuilder(BaseSphinx):
             os.makedirs(self.target)
         if from_globs:
             from_file = from_globs[0]
-            to_file = os.path.join(self.target, "%s.epub" % self.version.project.slug)
+            to_file = os.path.join(self.target, "%s.epub" % self.state.core.project)
             run('mv -f %s %s' % (from_file, to_file))
 
 
@@ -237,13 +220,11 @@ class PdfBuilder(BaseSphinx):
     @restoring_chdir
     def build(self, **kwargs):
         self.clean()
-        project = self.version.project
-        os.chdir(project.conf_dir(self.version.slug))
+        os.chdir(self.state.fs.conf_dir)
         # Default to this so we can return it always.
         results = {}
         latex_results = run('%s -b latex -D language=%s -d _build/doctrees . _build/latex'
-                            % (project.venv_bin(version=self.version.slug,
-                                                bin='sphinx-build'), project.language))
+                            % (self.state.fs.env_bin(bin='sphinx-build'), self.state.core.language))
 
         if latex_results[0] == 0:
             os.chdir('_build/latex')
@@ -278,8 +259,8 @@ class PdfBuilder(BaseSphinx):
         if not os.path.exists(self.target):
             os.makedirs(self.target)
 
-        exact = os.path.join(self.old_artifact_path, "%s.pdf" % self.version.project.slug)
-        exact_upper = os.path.join(self.old_artifact_path, "%s.pdf" % self.version.project.slug.capitalize())
+        exact = os.path.join(self.old_artifact_path, "%s.pdf" % self.state.core.project)
+        exact_upper = os.path.join(self.old_artifact_path, "%s.pdf" % self.state.core.project.capitalize())
 
         if self.pdf_file_name and os.path.exists(self.pdf_file_name):
             from_file = self.pdf_file_name
@@ -294,5 +275,5 @@ class PdfBuilder(BaseSphinx):
             else:
                 from_file = None
         if from_file:
-            to_file = os.path.join(self.target, "%s.pdf" % self.version.project.slug)
+            to_file = os.path.join(self.target, "%s.pdf" % self.state.core.project)
             run('mv -f %s %s' % (from_file, to_file))

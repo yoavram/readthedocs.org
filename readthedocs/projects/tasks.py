@@ -20,6 +20,7 @@ from core.utils import send_email
 from doc_builder.loader import loading as builder_loading
 from doc_builder.base import restoring_chdir
 from doc_builder.environments import DockerEnvironment
+from doc_builder import state as builder_state
 from projects.exceptions import ProjectImportError
 from projects.models import ImportedFile, Project
 from projects.utils import run, make_api_version, make_api_project
@@ -88,6 +89,7 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
     results = {}
 
     # Build Servery stuff
+
     try:
         record_build(api=api, build=build, record=record, results=results, state='cloning')
         vcs_results = setup_vcs(version, build, api)
@@ -97,6 +99,10 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
         if project.documentation_type == 'auto':
             update_documentation_type(version, apiv2)
 
+        state = builder_state.BuildState(fs=version.fs_state, vcs=version.vcs_state, core=version.core_state, settings=version.settings_state)
+        BuilderClass = builder_loading.get(project.documentation_type)
+        builder = BuilderClass(state=state)
+
         if docker or settings.DOCKER_ENABLE:
             record_build(api=api, build=build, record=record, results=results, state='building')
             docker = DockerEnvironment(version)
@@ -104,7 +110,7 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
             results.update(build_results)
         else:
             record_build(api=api, build=build, record=record, results=results, state='installing')
-            setup_results = setup_environment(version)
+            setup_results = builder.setup_environment()
             results.update(setup_results)
 
             record_build(api=api, build=build, record=record, results=results, state='building')
@@ -303,7 +309,8 @@ def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
     with project.repo_nonblockinglock(version=version,
                                       max_lock_age=getattr(settings, 'REPO_LOCK_SECONDS', 30)):
 
-        html_builder = builder_loading.get(project.documentation_type)(version)
+        state = builder_state.BuildState(fs=version.fs_state, vcs=version.vcs_state, core=version.core_state, settings=version.settings_state)
+        html_builder = builder_loading.get(project.documentation_type)(state)
         if force:
             html_builder.force()
         html_builder.append_conf()
@@ -326,7 +333,7 @@ def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
         if 'mkdocs' in project.documentation_type:
             if search:
                 try:
-                    search_builder = builder_loading.get('mkdocs_json')(version)
+                    search_builder = builder_loading.get('mkdocs_json')(state)
                     results['search'] = search_builder.build()
                     if results['search'][0] == 0:
                         search_builder.move()
@@ -339,8 +346,7 @@ def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
             # server.
             if search:
                 try:
-                    search_builder = builder_loading.get(
-                        'sphinx_search')(version)
+                    search_builder = builder_loading.get('sphinx_search')(state)
                     results['search'] = search_builder.build()
                     if results['search'][0] == 0:
                         # Copy json for safe keeping
@@ -351,8 +357,7 @@ def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
             # Local media builder for singlepage HTML download archive
             if localmedia:
                 try:
-                    localmedia_builder = builder_loading.get(
-                        'sphinx_singlehtmllocalmedia')(version)
+                    localmedia_builder = builder_loading.get('sphinx_singlehtmllocalmedia')(state)
                     results['localmedia'] = localmedia_builder.build()
                     if results['localmedia'][0] == 0:
                         localmedia_builder.move()
@@ -363,7 +368,7 @@ def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
             # Optional build steps
             if version.project.slug not in HTML_ONLY and not project.skip:
                 if pdf:
-                    pdf_builder = builder_loading.get('sphinx_pdf')(version)
+                    pdf_builder = builder_loading.get('sphinx_pdf')(state)
                     results['pdf'] = pdf_builder.build()
                     # Always move pdf results even when there's an error.
                     # if pdf_results[0] == 0:
@@ -371,7 +376,7 @@ def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
                 else:
                     results['pdf'] = fake_results
                 if epub:
-                    epub_builder = builder_loading.get('sphinx_epub')(version)
+                    epub_builder = builder_loading.get('sphinx_epub')(state)
                     results['epub'] = epub_builder.build()
                     if results['epub'][0] == 0:
                         epub_builder.move()

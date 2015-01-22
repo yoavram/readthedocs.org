@@ -17,7 +17,7 @@ class ProjectOnboardMixin(object):
 
         # Show for the first few builds, return last build state
         if project.builds.count() <= 5:
-            onboard['build'] = project.get_latest_build(finished=False)
+            onboard['build'] = project.get_latest_build()
             if 'github' in project.repo:
                 onboard['provider'] = 'github'
             elif 'bitbucket' in project.repo:
