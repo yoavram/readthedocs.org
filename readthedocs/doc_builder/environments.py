@@ -10,10 +10,6 @@ import traceback
 
 from django.utils.text import slugify
 from django.conf import settings
-from rest_framework.renderers import JSONRenderer
-
-from projects.utils import run
-from restapi.serializers import VersionFullSerializer
 
 log = logging.getLogger(__name__)
 
@@ -114,9 +110,8 @@ class DockerEnvironment(EnvironmentBase):
         )
         with cmd:
             try:
-                renderer = JSONRenderer()
-                version_data = VersionFullSerializer(self.state).data
-                cmd.run(cmd_input=renderer.render(version_data))
+                state_data = self.state.json()
+                cmd.run(cmd_input=state_data)
             except Exception as e:
                 log.error('Passing data to Docker failed: %s', str(e))
                 return self.response({'status': -1, 'output': None,

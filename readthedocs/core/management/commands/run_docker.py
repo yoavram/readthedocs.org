@@ -7,6 +7,8 @@ from django.core.management.base import BaseCommand
 from projects import tasks
 from tastyapi import api
 
+from doc_builder.state import BuildState
+
 log = logging.getLogger(__name__)
 
 
@@ -22,10 +24,11 @@ class Command(BaseCommand):
 
         try:
             input_data = self._get_input(files)
-            version_data = json.loads(input_data)
-            version = tasks.make_api_version(version_data)
-            log.info('Building %s', version)
-            output = _return_json(tasks.docker_build(version))
+            state_obj = json.loads(input_data)
+            state = BuildState()
+            state.from_json(state_obj)
+            log.info('Building %s', state.core.version)
+            output = _return_json(tasks.docker_build(state))
         except Exception as e:
             output = _return_json(
                 {'doc_builder': (-1, '', '{0}: {1}'.format(type(e).__name__,

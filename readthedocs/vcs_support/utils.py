@@ -5,11 +5,13 @@ import stat
 
 log = logging.getLogger(__name__)
 
+
 class LockTimeout(Exception):
     pass
 
 
 class Lock(object):
+
     """
     A simple file based lock with timeout
 
@@ -57,6 +59,7 @@ class Lock(object):
 
 
 class NonBlockingLock(object):
+
     """
     Instead of waiting for a lock, depending on the lock file age, either
     acquire it immediately or throw LockTimeout
@@ -67,10 +70,10 @@ class NonBlockingLock(object):
         None means never force
     """
 
-    def __init__(self, project, version, max_lock_age=None):
-        self.fpath = os.path.join(project.doc_path, '%s__rtdlock' % version.slug)
+    def __init__(self, version, project, doc_path, max_lock_age=None):
+        self.fpath = os.path.join(doc_path, '%s__rtdlock' % version)
         self.max_lock_age = max_lock_age
-        self.name = project.slug
+        self.name = project
 
     def __enter__(self):
         path_exists = os.path.exists(self.fpath)
@@ -94,4 +97,3 @@ class NonBlockingLock(object):
         except (IOError, OSError):
             log.error("Lock (%s): Failed to release, ignoring..." % self.name,
                       exc_info=True)
-

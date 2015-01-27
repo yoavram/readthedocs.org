@@ -9,10 +9,7 @@ from django.conf import settings
 from django.template import Context, loader as template_loader
 
 from doc_builder.base import BaseBuilder, restoring_chdir
-from search.utils import parse_content_from_file, parse_headers_from_file, parse_sections_from_file
-from projects.utils import run
-from projects.constants import LOG_TEMPLATE
-from tastyapi import apiv2
+from doc_builder.utils import run
 
 log = logging.getLogger(__name__)
 

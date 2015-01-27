@@ -5,6 +5,7 @@ import fnmatch
 import os
 import shutil
 import json
+import yaml
 import logging
 import socket
 import requests
@@ -99,13 +100,16 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
         if project.documentation_type == 'auto':
             update_documentation_type(version, apiv2)
 
+        ### Stateful
+
         state = builder_state.BuildState(fs=version.fs_state, vcs=version.vcs_state, core=version.core_state, settings=version.settings_state)
+        update_config_from_yaml(state)
         BuilderClass = builder_loading.get(project.documentation_type)
         builder = BuilderClass(state=state)
 
         if docker or settings.DOCKER_ENABLE:
             record_build(api=api, build=build, record=record, results=results, state='building')
-            docker = DockerEnvironment(version)
+            docker = DockerEnvironment()
             build_results = docker.build()
             results.update(build_results)
         else:
@@ -114,8 +118,10 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
             results.update(setup_results)
 
             record_build(api=api, build=build, record=record, results=results, state='building')
-            build_results = build_docs(version, force, pdf, man, epub, dash, search, localmedia)
+            build_results = builder.run_build()
             results.update(build_results)
+
+        ### End Stateful
 
     except vcs_support_utils.LockTimeout, e:
         results['checkout'] = (423, "", "Version locked, retrying in 5 minutes.")
@@ -187,14 +193,16 @@ def update_documentation_type(version, api):
     version.project.documentation_type = ret
 
 
-def docker_build(version, pdf=True, man=True, epub=True, dash=True,
-                 search=True, force=False, intersphinx=True, localmedia=True):
+def docker_build(state):
     """
     The code that executes inside of docker
     """
-    environment_results = setup_environment(version)
-    results = build_docs(version=version, force=force, pdf=pdf, man=man,
-                         epub=epub, dash=dash, search=search, localmedia=localmedia)
+
+    BuilderClass = builder_loading.get(state.core.documentation_type)
+    builder = BuilderClass(state=state)
+
+    environment_results = builder.setup_environment()
+    results = builder.run_build()
     results.update(environment_results)
     return results
 
@@ -239,8 +247,7 @@ def update_imported_docs(version_pk, api=None):
     if not project.vcs_repo():
         raise ProjectImportError(("Repo type '{0}' unknown".format(project.repo_type)))
 
-    with project.repo_nonblockinglock(version=version,
-                                      max_lock_age=getattr(settings, 'REPO_LOCK_SECONDS', 30)):
+    with vcs_support_utils.NonBlockingLock(version=version.slug, project=project.slug, doc_path=project.doc_path, max_lock_age=getattr(settings, 'REPO_LOCK_SECONDS', 30)):
 
         before_vcs.send(sender=version)
         # Get the actual code on disk
@@ -295,97 +302,6 @@ def update_imported_docs(version_pk, api=None):
     return ret_dict
 
 
-@task()
-def build_docs(version, force, pdf, man, epub, dash, search, localmedia):
-    """
-    This handles the actual building of the documentation
-    """
-
-    project = version.project
-    results = {}
-
-    before_build.send(sender=version)
-
-    with project.repo_nonblockinglock(version=version,
-                                      max_lock_age=getattr(settings, 'REPO_LOCK_SECONDS', 30)):
-
-        state = builder_state.BuildState(fs=version.fs_state, vcs=version.vcs_state, core=version.core_state, settings=version.settings_state)
-        html_builder = builder_loading.get(project.documentation_type)(state)
-        if force:
-            html_builder.force()
-        html_builder.append_conf()
-        results['html'] = html_builder.build()
-        if results['html'][0] == 0:
-            html_builder.move()
-
-        # Gracefully attempt to move files via task on web workers.
-        try:
-            move_files.delay(
-                version_pk=version.pk,
-                html=True,
-                hostname=socket.gethostname(),
-            )
-        except socket.error:
-            pass
-
-        fake_results = (999, "Project Skipped, Didn't build",
-                        "Project Skipped, Didn't build")
-        if 'mkdocs' in project.documentation_type:
-            if search:
-                try:
-                    search_builder = builder_loading.get('mkdocs_json')(state)
-                    results['search'] = search_builder.build()
-                    if results['search'][0] == 0:
-                        search_builder.move()
-                except:
-                    log.error(LOG_TEMPLATE.format(
-                        project=project.slug, version=version.slug, msg="JSON Build Error"), exc_info=True)
-
-        if 'sphinx' in project.documentation_type:
-            # Search builder. Creates JSON from docs and sends it to the
-            # server.
-            if search:
-                try:
-                    search_builder = builder_loading.get('sphinx_search')(state)
-                    results['search'] = search_builder.build()
-                    if results['search'][0] == 0:
-                        # Copy json for safe keeping
-                        search_builder.move()
-                except:
-                    log.error(LOG_TEMPLATE.format(
-                        project=project.slug, version=version.slug, msg="JSON Build Error"), exc_info=True)
-            # Local media builder for singlepage HTML download archive
-            if localmedia:
-                try:
-                    localmedia_builder = builder_loading.get('sphinx_singlehtmllocalmedia')(state)
-                    results['localmedia'] = localmedia_builder.build()
-                    if results['localmedia'][0] == 0:
-                        localmedia_builder.move()
-                except:
-                    log.error(LOG_TEMPLATE.format(
-                        project=project.slug, version=version.slug, msg="Local Media HTML Build Error"), exc_info=True)
-
-            # Optional build steps
-            if version.project.slug not in HTML_ONLY and not project.skip:
-                if pdf:
-                    pdf_builder = builder_loading.get('sphinx_pdf')(state)
-                    results['pdf'] = pdf_builder.build()
-                    # Always move pdf results even when there's an error.
-                    # if pdf_results[0] == 0:
-                    pdf_builder.move()
-                else:
-                    results['pdf'] = fake_results
-                if epub:
-                    epub_builder = builder_loading.get('sphinx_epub')(state)
-                    results['epub'] = epub_builder.build()
-                    if results['epub'][0] == 0:
-                        epub_builder.move()
-                else:
-                    results['epub'] = fake_results
-
-    after_build.send(sender=version)
-
-    return results
 
 
 def create_build(build_pk):
@@ -400,6 +316,31 @@ def create_build(build_pk):
     else:
         build = {}
     return build
+
+
+@task()
+def update_config_from_yaml(state, yaml_obj=None):
+    """
+    Check out or update the given project's repository.
+    """
+    # Remove circular import
+    log.debug(LOG_TEMPLATE.format(project=state.core.project, version=state.core.version, msg="Checking for yml config"))
+    try:
+        if not yaml_obj:
+            rtd_yaml = open(os.path.join(state.fs.checkout_path, '.rtd.yml'))
+            yaml_obj = yaml.load(rtd_yaml, safe=True)
+        #for key in yaml_obj.keys():
+            # Treat the defined fields on the Import form as
+            # the canonical list of allowed user editable fields.
+            # This is in essense just another UI for that form.
+            # if key not in ImportProjectForm._meta.fields:
+            #     del yaml_obj[key]
+    except IOError:
+        log.debug(LOG_TEMPLATE.format(project=state.core.project, version=state.core.version, msg="No rtd.yml found."))
+        return None
+
+    state.from_json(yaml_obj)
+    log.debug(LOG_TEMPLATE.format(project=state.core.project, version=state.core.version, msg="Updated from YAML."))
 
 
 def record_build(api, record, build, results, state):
@@ -740,50 +681,6 @@ def remove_dir(path):
     """
     log.info("Removing %s" % path)
     shutil.rmtree(path)
-
-
-# @task()
-# def update_config_from_json(version_pk):
-#     """
-#     Check out or update the given project's repository.
-#     """
-# Remove circular import
-#     from projects.forms import ImportProjectForm
-#     version_data = api.version(version_pk).get()
-#     version = make_api_version(version_data)
-#     project = version.project
-#     log.debug(LOG_TEMPLATE.format(project=project.slug, version=version.slug, msg="Checking for json config"))
-#     try:
-#         rtd_json = open(os.path.join(
-#             project.checkout_path(version.slug),
-#             '.rtd.json'
-#         ))
-#         json_obj = json.load(rtd_json)
-#         for key in json_obj.keys():
-# Treat the defined fields on the Import form as
-# the canonical list of allowed user editable fields.
-# This is in essense just another UI for that form.
-#             if key not in ImportProjectForm._meta.fields:
-#                 del json_obj[key]
-#     except IOError:
-#         log.debug(LOG_TEMPLATE.format(project=project.slug, version=version.slug, msg="No rtd.json found."))
-#         return None
-
-#     project_data = api.project(project.pk).get()
-#     project_data.update(json_obj)
-#     api.project(project.pk).put(project_data)
-#     log.debug(LOG_TEMPLATE.format(project=project.slug, version=version.slug, msg="Updated from JSON."))
-
-# def update_state(version):
-#     """
-#     Keep state between the repo and the database
-#     """
-#     log.debug(LOG_TEMPLATE.format(project=version.project.slug, version=version.slug, msg='Setting config values from .rtd.yml'))
-#     try:
-#         update_config_from_json(version.pk)
-#     except Exception, e:
-# Never kill the build, but log the error
-#         log.error(LOG_TEMPLATE.format(project=version.project.slug, version=version.slug, msg='Failure in config parsing code: %s ' % e.message))
 
 
 

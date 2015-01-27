@@ -1,11 +1,20 @@
+import socket
 from functools import wraps
 import os
 import logging
 import shutil
 
-from projects.utils import run
 
-from projects.constants import LOG_TEMPLATE
+from doc_builder.utils import run
+
+from vcs_support.utils import NonBlockingLock
+
+try:
+    from readthedocs.projects.signals import before_vcs, after_vcs, before_build, after_build
+except:
+    from projects.signals import before_vcs, after_vcs, before_build, after_build
+
+LOG_TEMPLATE = u"(Doc Builder) [{project}:{version}] {msg}"
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +46,97 @@ class BaseBuilder(object):
     def __init__(self, state):
         self.state = state
         self.target = self.state.fs.project.get_artifact_path(version=self.state.core.version, type=self.type)
+
+    def run_build(self, force=False):
+        """
+        This handles the actual building of the documentation
+        """
+
+        from doc_builder.loader import loading as builder_loading
+        from projects.tasks import move_files
+
+        results = {}
+
+        before_build.send(sender=self.state)
+
+        with NonBlockingLock(version=self.state.core.version, project=self.state.core.project, doc_path=self.state.fs.project.doc_path, max_lock_age=self.state.settings.REPO_LOCK_SECONDS):
+
+            html_builder = builder_loading.get(self.state.core.documentation_type)(self.state)
+            if force:
+                html_builder.force()
+            html_builder.append_conf()
+            results['html'] = html_builder.build()
+            if results['html'][0] == 0:
+                html_builder.move()
+
+            # Gracefully attempt to move files via task on web workers.
+            try:
+                move_files.delay(
+                    state=self.state,
+                    html=True,
+                    hostname=socket.gethostname(),
+                )
+            except socket.error:
+                pass
+
+            fake_results = (999, "Project Skipped, Didn't build",
+                            "Project Skipped, Didn't build")
+            if 'mkdocs' in self.state.core.documentation_type:
+                if 'search' in self.state.core.build_types:
+                    try:
+                        search_builder = builder_loading.get('mkdocs_json')(self.state)
+                        results['search'] = search_builder.build()
+                        if results['search'][0] == 0:
+                            search_builder.move()
+                    except:
+                        log.error(LOG_TEMPLATE.format(
+                            project=self.state.core.project, version=self.state.core.version, msg="JSON Build Error"), exc_info=True)
+
+            if 'sphinx' in self.state.core.documentation_type:
+                # Search builder. Creates JSON from docs and sends it to the
+                # server.
+                if 'search' in self.state.core.build_types:
+                    try:
+                        search_builder = builder_loading.get('sphinx_search')(self.state)
+                        results['search'] = search_builder.build()
+                        if results['search'][0] == 0:
+                            # Copy json for safe keeping
+                            search_builder.move()
+                    except:
+                        log.error(LOG_TEMPLATE.format(
+                            project=self.state.core.project, version=self.state.core.version, msg="JSON Build Error"), exc_info=True)
+                # Local media builder for singlepage HTML download archive
+                if 'localmedia' in self.state.core.build_types:
+                    try:
+                        localmedia_builder = builder_loading.get('sphinx_singlehtmllocalmedia')(self.state)
+                        results['localmedia'] = localmedia_builder.build()
+                        if results['localmedia'][0] == 0:
+                            localmedia_builder.move()
+                    except:
+                        log.error(LOG_TEMPLATE.format(
+                            project=self.state.core.project, version=self.state.core.version, msg="Local Media HTML Build Error"), exc_info=True)
+
+                # Optional build steps
+                if self.state.core.name not in self.state.settings.HTML_ONLY:
+                    if 'pdf' in self.state.core.build_types:
+                        pdf_builder = builder_loading.get('sphinx_pdf')(self.state)
+                        results['pdf'] = pdf_builder.build()
+                        # Always move pdf results even when there's an error.
+                        # if pdf_results[0] == 0:
+                        pdf_builder.move()
+                    else:
+                        results['pdf'] = fake_results
+                    if 'epub' in self.state.core.build_types:
+                        epub_builder = builder_loading.get('sphinx_epub')(self.state)
+                        results['epub'] = epub_builder.build()
+                        if results['epub'][0] == 0:
+                            epub_builder.move()
+                    else:
+                        results['epub'] = fake_results
+
+        after_build.send(sender=self.state)
+
+        return results
 
     def setup_environment(self):
         """
@@ -72,9 +172,9 @@ class BaseBuilder(object):
                 ignore_option = ''
             ret_dict['sphinx'] = run(
                 ('{cmd} install -U {ignore_option} '
-                'sphinx_rtd_theme sphinx==1.2.2 ' 
-                'virtualenv==1.9.1 docutils==0.11 '
-                'git+git://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext').format(
+                 'sphinx_rtd_theme sphinx==1.2.2 '
+                 'virtualenv==1.9.1 docutils==0.11 '
+                 'git+git://github.com/ericholscher/readthedocs-sphinx-ext#egg=readthedocs_ext').format(
                     cmd=self.state.fs.env_bin('pip'),
                     ignore_option=ignore_option))
 
@@ -131,7 +231,7 @@ class BaseBuilder(object):
         """
 
         if not docs_dir:
-            checkout_path = self.version.project.checkout_path(self.version.slug)
+            checkout_path = self.version.project.checkout_path(self.self.state.core.version)
             for possible_path in ['docs', 'doc', 'Doc', 'book']:
                 if os.path.exists(os.path.join(checkout_path, '%s' % possible_path)):
                     docs_dir = possible_path

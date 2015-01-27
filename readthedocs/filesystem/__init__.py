@@ -29,9 +29,8 @@ class FilesystemProject(object):
 
 class ReadTheDocsProject(FilesystemProject):
 
-    def __init__(self, root, slug, **kwargs):
-        self.root = root
-        self.slug = slug
+    def __init__(self, *args, **kwargs):
+        super(ReadTheDocsProject, self).__init__(*args, **kwargs)
         self.checkout_path = os.path.join(self.doc_path, 'checkouts')
         self.env_path = os.path.join(self.doc_path, 'envs')
         self.artifact_path = os.path.join(self.doc_path, 'artifacts')

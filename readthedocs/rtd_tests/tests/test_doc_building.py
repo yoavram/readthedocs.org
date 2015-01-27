@@ -1,3 +1,4 @@
+import json
 import os
 import os.path
 import shutil
@@ -7,6 +8,7 @@ import re
 from django.test import TestCase
 from django.contrib.auth.models import User
 
+from projects import tasks
 from projects.models import Project
 from builds.models import Version
 from doc_builder.environments import (DockerEnvironment, DockerBuildCommand,
@@ -15,7 +17,7 @@ from rtd_tests.utils import make_test_git
 from rtd_tests.base import RTDTestCase
 
 from doc_builder.loader import loading
-from doc_builder.state import CoreState, SettingsState, VCSState, BuildState
+from doc_builder.state import CoreState, SettingsState, VCSState, BuildState, StateEncoder
 from filesystem import FilesystemProject, SphinxVersion
 
 
@@ -58,8 +60,24 @@ class TestState(TestCase):
         sstate = SettingsState()
         self.state = BuildState(fs=version_obj, vcs=vcs, core=cstate, settings=sstate)
 
+    def test_json_encoding(self):
+        ret = self.state.json()
+        self.assertEqual(
+            ret, '{"core": {"requirements_file": "", "virtualenv": true, "name": null, "language": "en", "documentation_type": "sphinx", "downloads": [], "config_path": "", "project": "Kong", "analytics_code": null, "version": "latest", "versions": [], "interpreter": "python2", "canonical_url": null, "system_packages": false, "single_version": null}, "fs": {"project": {"artifact_path": "/Users/eric/checkouts/django-kong/rtd-artifact", "doc_path": "/Users/eric/checkouts/django-kong/kong", "env_path": "/Users/eric/checkouts/django-kong/rtd-env", "checkout_path": "/Users/eric/checkouts/django-kong/", "root": "/Users/eric/checkouts/django-kong/", "slug": "kong"}, "checkout_path": "/Users/eric/checkouts/django-kong/", "slug": "latest"}, "vcs": {"repo": "https://github.com/username/repo.git", "display_bitbucket": false, "display_github": false, "branch": "master"}, "settings": {}}'
+        )
+
+    def test_update_config(self):
+        obj = {
+            'core': {
+                'analytics_code': 'Wootles'
+            }
+        }
+        tasks.update_config_from_yaml(self.state, yaml_obj=obj)
+        self.assertEqual(self.state.core.analytics_code, 'Wootles')
+
 
 class TestDockerEnvironment(TestState):
+
     '''Test docker build environment'''
 
     fixtures = ['test_data']
@@ -71,6 +89,7 @@ class TestDockerEnvironment(TestState):
 
 
 class TestBuildCommand(TestCase):
+
     '''Test build command creation'''
 
     def test_command_env(self):
@@ -127,6 +146,7 @@ class TestBuildCommand(TestCase):
 
 
 class TestDockerBuildCommand(TestCase):
+
     '''Test docker build commands'''
 
     def test_command_build(self):

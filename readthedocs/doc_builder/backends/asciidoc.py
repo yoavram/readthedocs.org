@@ -2,11 +2,13 @@ import os
 import logging
 
 from doc_builder.base import BaseBuilder, restoring_chdir
-from projects.utils import run
+from doc_builder.utils import run
 
 log = logging.getLogger(__name__)
 
+
 class Builder(BaseBuilder):
+
     """
     Ascii Doctor builder
     """
@@ -24,6 +26,6 @@ class Builder(BaseBuilder):
         build_command = "%s build " % (
             project.venv_bin(version=self.version.slug,
                              bin='asciidoctor')
-            )
+        )
         results['html'] = run(build_command, shell=True)
         return results
