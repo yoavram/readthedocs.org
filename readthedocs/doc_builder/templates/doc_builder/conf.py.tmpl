@@ -57,7 +57,14 @@ else:
     using_rtd_theme = True
     html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
-    # Add project information to the template context.
+if globals().get('websupport2_base_url', False):
+    websupport2_base_url = '{{ api_host }}/websupport'
+    if 'http' not in settings.MEDIA_URL:
+        websupport2_static_url = '{{ settings.STATIC_URL }}'
+    else:
+        websupport2_static_url = '{{ settings.MEDIA_URL }}/static'
+
+#Add project information to the template context.
 context = {
     'READTHEDOCS': True,
 

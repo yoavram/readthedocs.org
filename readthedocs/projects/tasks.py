@@ -9,6 +9,7 @@ import yaml
 import logging
 import socket
 import requests
+import datetime
 
 from celery import task
 from django.conf import settings
@@ -17,7 +18,7 @@ from django.utils.translation import ugettext_lazy as _
 from slumber.exceptions import HttpClientError
 
 from builds.models import Build, Version
-from core.utils import send_email
+from core.utils import send_email, run_on_app_servers
 from doc_builder.loader import loading as builder_loading
 from doc_builder.base import restoring_chdir
 from doc_builder.environments import DockerEnvironment
@@ -74,6 +75,7 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
     else:
         apiv2 = api
 
+    start_time = datetime.datetime.utcnow()
     try:
         project_data = api.project(pk).get()
     except HttpClientError:
@@ -138,7 +140,7 @@ def update_docs(pk, version_pk=None, build_pk=None, record=True, docker=False,
         log.error(LOG_TEMPLATE.format(project=version.project.slug,
                                       version=version.slug, msg="Top-level Build Failure"), exc_info=True)
     finally:
-        record_build(api=api, build=build, record=record, results=results, state='finished')
+        record_build(api=api, build=build, record=record, results=results, state='finished', start_time=start_time)
         record_pdf(api=api, record=record, results=results, state='finished', version=version)
         log.info(LOG_TEMPLATE.format(project=version.project.slug, version='', msg='Build finished'))
 
@@ -302,8 +304,6 @@ def update_imported_docs(version_pk, api=None):
     return ret_dict
 
 
-
-
 def create_build(build_pk):
     """
     Old placeholder for build creation. Now it just gets it from the database.
@@ -318,32 +318,7 @@ def create_build(build_pk):
     return build
 
 
-@task()
-def update_config_from_yaml(state, yaml_obj=None):
-    """
-    Check out or update the given project's repository.
-    """
-    # Remove circular import
-    log.debug(LOG_TEMPLATE.format(project=state.core.project, version=state.core.version, msg="Checking for yml config"))
-    try:
-        if not yaml_obj:
-            rtd_yaml = open(os.path.join(state.fs.checkout_path, '.rtd.yml'))
-            yaml_obj = yaml.load(rtd_yaml, safe=True)
-        #for key in yaml_obj.keys():
-            # Treat the defined fields on the Import form as
-            # the canonical list of allowed user editable fields.
-            # This is in essense just another UI for that form.
-            # if key not in ImportProjectForm._meta.fields:
-            #     del yaml_obj[key]
-    except IOError:
-        log.debug(LOG_TEMPLATE.format(project=state.core.project, version=state.core.version, msg="No rtd.yml found."))
-        return None
-
-    state.from_json(yaml_obj)
-    log.debug(LOG_TEMPLATE.format(project=state.core.project, version=state.core.version, msg="Updated from YAML."))
-
-
-def record_build(api, record, build, results, state):
+def record_build(api, record, build, results, state, start_time=None):
     """
     Record a build by hitting the API.
 
@@ -374,19 +349,34 @@ def record_build(api, record, build, results, state):
     build['setup'] = build['setup_error'] = ""
     build['output'] = build['error'] = ""
 
+    if start_time:
+        build['length'] = (datetime.datetime.utcnow() - start_time).total_seconds()
+
     for step in setup_steps:
         if step in results:
             build['setup'] += "\n\n%s\n-----\n\n" % step
-            build['setup'] += results.get(step)[1]
+            try:
+                build['setup'] += results.get(step)[1]
+            except (IndexError, TypeError):
+                pass
             build['setup_error'] += "\n\n%s\n-----\n\n" % step
-            build['setup_error'] += results.get(step)[2]
+            try:
+                build['setup_error'] += results.get(step)[2]
+            except (IndexError, TypeError):
+                pass
 
     for step in output_steps:
         if step in results:
             build['output'] += "\n\n%s\n-----\n\n" % step
-            build['output'] += results.get(step)[1]
+            try:
+                build['output'] += results.get(step)[1]
+            except (IndexError, TypeError):
+                pass
             build['error'] += "\n\n%s\n-----\n\n" % step
-            build['error'] += results.get(step)[2]
+            try:
+                build['error'] += results.get(step)[2]
+            except (IndexError, TypeError):
+                pass
 
     # Attempt to stop unicode errors on build reporting
     for key, val in build.items():
@@ -666,6 +656,20 @@ def update_static_metadata(project_pk, path=None):
         ))
 
 
+#@periodic_task(run_every=crontab(hour="*", minute="*/5", day_of_week="*"))
+def update_docs_pull(record=False, pdf=False, man=False, force=False):
+    """
+    A high-level interface that will update all of the projects.
+
+    This is mainly used from a cronjob or management command.
+    """
+    for version in Version.objects.filter(built=True):
+        try:
+            update_docs(
+                pk=version.project.pk, version_pk=version.pk, record=record, pdf=pdf, man=man)
+        except Exception, e:
+            log.error("update_docs_pull failed", exc_info=True)
+
 ##############
 # Random Tasks
 ##############
@@ -683,6 +687,14 @@ def remove_dir(path):
     shutil.rmtree(path)
 
 
+@task(queue='web')
+def clear_artifacts(version_pk):
+    """ Remove artifacts from the web servers. """
+    version = Version.objects.get(pk=version_pk)
+    run_on_app_servers('rm -rf %s' % version.project.get_production_media_path(type='pdf', version_slug=version.slug))
+    run_on_app_servers('rm -rf %s' % version.project.get_production_media_path(type='epub', version_slug=version.slug))
+    run_on_app_servers('rm -rf %s' % version.project.get_production_media_path(type='htmlzip', version_slug=version.slug))
+    run_on_app_servers('rm -rf %s' % version.project.rtd_build_path(version=version.slug))
 
 # @task()
 # def zenircbot_notification(version_id):
