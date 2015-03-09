@@ -1,5 +1,6 @@
 import re
 import os
+import sys
 import codecs
 import json
 from glob import glob
@@ -103,8 +104,12 @@ class BaseSphinx(BaseBuilder):
             self.create_index(extension='rst')
 
         # Open file for appending.
-        outfile = codecs.open(self.state.fs.conf_file, encoding='utf-8', mode='a')
-        outfile.write("\n")
+        try:
+            outfile = codecs.open(self.state.fs.conf_file, encoding='utf-8', mode='a')
+            outfile.write("\n")
+        except IOError:
+            trace = sys.exc_info()[2]
+            raise ProjectImportError('Conf file not found'), None, trace
 
         rtd_ctx = Context({
             'state': self.state,
