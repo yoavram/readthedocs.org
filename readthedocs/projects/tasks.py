@@ -358,11 +358,7 @@ def record_build(api, record, build, results, state, start_time=None):
             build['setup'] += "\n\n%s\n-----\n\n" % step
             try:
                 build['setup'] += results.get(step)[1]
-            except (IndexError, TypeError):
-                pass
-            build['setup_error'] += "\n\n%s\n-----\n\n" % step
-            try:
-                build['setup_error'] += results.get(step)[2]
+                build['setup'] += results.get(step)[2]
             except (IndexError, TypeError):
                 pass
 
@@ -371,11 +367,7 @@ def record_build(api, record, build, results, state, start_time=None):
             build['output'] += "\n\n%s\n-----\n\n" % step
             try:
                 build['output'] += results.get(step)[1]
-            except (IndexError, TypeError):
-                pass
-            build['error'] += "\n\n%s\n-----\n\n" % step
-            try:
-                build['error'] += results.get(step)[2]
+                build['output'] += results.get(step)[2]
             except (IndexError, TypeError):
                 pass
 
@@ -397,12 +389,12 @@ def record_pdf(api, record, results, state, version):
         if 'pdf' in results:
             pdf_exit = results['pdf'][0]
             pdf_success = pdf_exit == 0
-            pdf_output = results['pdf'][1]
-            pdf_error = results['pdf'][2]
+            pdf_output = results['pdf'][1] + results['pdf'][2]
         else:
             pdf_exit = 999
             pdf_success = False
-            pdf_output = pdf_error = "PDF Failed"
+            pdf_output = ''
+            pdf_error = "PDF Failed"
 
         pdf_output = pdf_output.decode('utf-8', 'ignore')
         pdf_error = pdf_error.decode('utf-8', 'ignore')
