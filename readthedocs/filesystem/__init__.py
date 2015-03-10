@@ -1,7 +1,7 @@
 import fnmatch
 import os
 
-from projects.exceptions import ProjectImportError
+from doc_builder.constants import BuildException
 
 
 class FilesystemProject(object):
@@ -124,7 +124,7 @@ class SphinxVersion(Version):
             # Having this be translatable causes this odd error:
             # ProjectImportError(<django.utils.functional.__proxy__ object at
             # 0x1090cded0>,)
-            raise ProjectImportError(
+            raise BuildException(
                 u"Conf File Missing. Please make sure you have a conf.py in your project."
             )
 
