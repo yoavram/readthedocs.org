@@ -9,8 +9,7 @@ from django.utils.translation import ugettext_lazy as _, ugettext
 from guardian.shortcuts import assign
 from taggit.managers import TaggableManager
 
-from filesystem import ReadTheDocsProject, SphinxVersion
-from doc_builder import state as builder_state
+from doc_builder.state import BuildState
 from privacy.loader import VersionManager, RelatedProjectManager
 from projects.models import Project
 from projects import constants
@@ -230,23 +229,12 @@ class Version(models.Model):
         )
 
     @property
-    def vcs_state(self):
-        return builder_state.VCSState(
+    def build_state(self):
+        return BuildState(
             repo=self.project.repo,
             branch=self.identifier,
-        )
-
-    @property
-    def fs_state(self):
-        project_obj = ReadTheDocsProject(
             root=settings.DOCROOT,
             slug=self.project.slug,
-        )
-        return SphinxVersion(project=project_obj, slug=self.slug)
-
-    @property
-    def core_state(self):
-        return builder_state.CoreState(
             language=self.project.language,
             downloads=[],
             versions=[],
@@ -262,11 +250,6 @@ class Version(models.Model):
             documentation_type=self.project.documentation_type,
             requirements_file=self.project.requirements_file,
             config_path='',
-        )
-
-    @property
-    def settings_state(self):
-        return builder_state.SettingsState(
             API_HOST=settings.SLUMBER_API_HOST,
             MEDIA_URL=settings.MEDIA_URL,
             PRODUCTION_DOMAIN=settings.PRODUCTION_DOMAIN,
