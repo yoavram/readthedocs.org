@@ -24,11 +24,6 @@ from projects.utils import (highest_version as _highest, make_api_version,
 from taggit.managers import TaggableManager
 from tastyapi.slum import api
 
-from vcs_support.base import VCSProject
-from vcs_support.backends import backend_cls
-from vcs_support.utils import Lock, NonBlockingLock
-from doc_builder.loader import loading
-
 
 log = logging.getLogger(__name__)
 
@@ -467,7 +462,6 @@ class Project(models.Model):
 
     def venv_bin(self, version='latest', bin='python'):
         return os.path.join(self.venv_path(version), 'bin', bin)
-
 
     def artifact_path(self, type, version='latest'):
         """
