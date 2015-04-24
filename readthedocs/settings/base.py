@@ -74,6 +74,7 @@ LANGUAGES = (
     ('zh-tw', gettext('Taiwanese')),
     ('ja', gettext('Japanese')),
     ('uk', gettext('Ukrainian')),
+    ('it', gettext('Italian')),
 )
 LOCALE_PATHS = [
     os.path.join(SITE_ROOT, 'readthedocs', 'locale'),
@@ -199,6 +200,7 @@ INSTALLED_APPS = [
     'restapi',
     'privacy',
     'gold',
+    'donate',
 
     # allauth
     'allauth',
@@ -270,6 +272,7 @@ ANONYMOUS_USER_ID = -1
 
 # Stripe
 STRIPE_SECRET = None
+STRIPE_PUBLISHABLE = None
 
 # RTD Settings
 REPO_LOCK_SECONDS = 30

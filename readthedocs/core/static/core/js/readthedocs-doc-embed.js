@@ -34,8 +34,10 @@ Build.prototype.is_rtd_theme = function () {
 };
 
 Build.prototype.show_promo = function () {
+    // Turn off until the UI is fixed
+    return false;
     // TODO don't do this.
-    return (this.config['api_host'] != 'https://readthedocs.com');
+    // return (this.config['api_host'] != 'https://readthedocs.com');
 };
 
 },{}],3:[function(require,module,exports){
@@ -237,7 +239,9 @@ $(document).ready(function () {
                       } else {
                           navBar.removeClass(stickyNavCssClass);
                       }
-                      promo.waypoint.refresh();
+                      if (promo) {
+                          promo.waypoint.refresh();
+                      }
                   },
                   enable = function () {
                       init();
@@ -597,7 +601,6 @@ Promo.prototype.display = function () {
     this.waypoint = new Waypoint({
         element: promo.wrapper.get(0),
         offset: function () {
-            console.log($(window).height() - promo.height() - 80);
             return ($(window).height() - promo.height() - 80);
         },
         handler: function (direction) {

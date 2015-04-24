@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 
 import stripe
 
-from .forms import CardForm, OnceCardForm
+from .forms import CardForm
 from .models import GoldUser
 
 stripe.api_key = settings.STRIPE_SECRET
@@ -69,8 +69,6 @@ def register(request):
             'publishable': settings.STRIPE_PUBLISHABLE,
             'soon': soon(),
             'user': user,
-            'months': range(1, 13),
-            'years': range(2011, 2036),
         },
         context_instance=RequestContext(request)
     )
@@ -85,6 +83,7 @@ def edit(request):
 
             customer = stripe.Customer.retrieve(user.stripe_id)
             customer.card = form.cleaned_data['stripe_token']
+            customer.plan = form.cleaned_data['level']
             customer.save()
 
             user.last_4_digits = form.cleaned_data['last_4_digits']
@@ -104,38 +103,6 @@ def edit(request):
             'form': form,
             'publishable': settings.STRIPE_PUBLISHABLE,
             'soon': soon(),
-            'months': range(1, 13),
-            'years': range(2011, 2036)
-        },
-        context_instance=RequestContext(request)
-    )
-
-
-@login_required
-def once(request):
-    if request.method == 'POST':
-        form = OnceCardForm(request.POST)
-        if form.is_valid():
-
-            stripe.Charge.create(
-                amount=int(form.cleaned_data['dollars']) * 100,
-                currency="usd",
-                card=form.cleaned_data['stripe_token'],
-                description="One time payment to Read the Docs.",
-            )
-            return HttpResponseRedirect(reverse('gold_thanks'))
-
-    else:
-        form = OnceCardForm()
-
-    return render_to_response(
-        'gold/once.html',
-        {
-            'form': form,
-            'publishable': settings.STRIPE_PUBLISHABLE,
-            'soon': soon(),
-            'months': range(1, 13),
-            'years': range(2011, 2036)
         },
         context_instance=RequestContext(request)
     )
@@ -162,7 +129,6 @@ def cancel(request):
     )
 
 
-@login_required
 def thanks(request):
     return render_to_response(
         'gold/thanks.html',

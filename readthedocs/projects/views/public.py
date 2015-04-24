@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404, render_to_response
 from django.template import RequestContext
 from django.views.generic import ListView, DetailView
 from django.utils.datastructures import SortedDict
+from django.views.decorators.cache import cache_page
 
 from taggit.models import Tag
 import requests
@@ -110,6 +111,8 @@ def _badge_return(redirect, url):
         return http_response
 
 
+# TODO remove this, it's a temporary fix to heavy database usage
+@cache_page(60 * 30)
 def project_badge(request, project_slug, redirect=False):
     """
     Return a sweet badge for the project
@@ -446,6 +449,10 @@ def project_embed(request, project_slug):
         {
             'project': project,
             'files': files,
+            'settings': {
+                'GROK_API_HOST': settings.GROK_API_HOST,
+                'URI': request.build_absolute_uri(location='/').rstrip('/')
+            }
         },
         context_instance=RequestContext(request)
     )
