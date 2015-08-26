@@ -20,7 +20,7 @@ pep8:
 
 pylint:
   options:
-    docstring-min-length: 10
+    docstring-min-length: 20
     dummy-variables-rgx: '_$|__$|dummy'
     max-line-length: 100
   disable:
