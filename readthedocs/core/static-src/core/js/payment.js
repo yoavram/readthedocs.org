@@ -65,12 +65,7 @@ function PaymentView (config) {
 
         stripe.createToken(card, function(status, response) {
             if (status === 200) {
-                // Update form fields that are actually sent to 
-                var cc_last_digits = self.form.find('#id_last_4_digits'),
-                    token = self.form.find('#id_stripe_id,#id_stripe_token');
-                cc_last_digits.val(response.card.last4);
-                token.val(response.id);
-                self.form.submit();
+                self.submit_form(response.card.last4, response.id);
             }
             else {
                 self.error(response.error.message);
@@ -78,6 +73,12 @@ function PaymentView (config) {
         });
     };
 }
+
+PaymentView.prototype.submit_form = function (card_digits, token) {
+    this.form.find('#id_last_4_digits,#id_card_digits').val(card_digits);
+    this.form.find('#id_stripe_id,#id_stripe_token').val(token);
+    this.form.submit();
+};
 
 PaymentView.prototype.initialize_form = function () {
     var cc_number = $('input#cc-number'),
